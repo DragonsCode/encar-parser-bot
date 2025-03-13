@@ -6,7 +6,7 @@ from database.base import SqlAlchemyBase
 
 class Filters(SqlAlchemyBase):
     __tablename__ = "filters"
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("users.id"))
     manufacture_id = Column(BigInteger, ForeignKey("manufacture.id"), default=None)
     model_id = Column(BigInteger, ForeignKey("models.id"), default=None)

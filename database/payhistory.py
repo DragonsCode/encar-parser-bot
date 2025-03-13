@@ -6,7 +6,7 @@ from database.base import SqlAlchemyBase
 
 class PayHistory(SqlAlchemyBase):
     __tablename__ = "payhistory"
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("users.id"))
     tariff_id = Column(BigInteger, ForeignKey("tariffs.id"))
     price = Column(Float, default=None)

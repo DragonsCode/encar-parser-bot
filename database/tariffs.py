@@ -6,7 +6,7 @@ from database.base import SqlAlchemyBase
 
 class Tariffs(SqlAlchemyBase):
     __tablename__ = "tariffs"
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     name = Column(Text, default=None)
     description = Column(Text, default=None)
     days_count = Column(Integer, default=None)

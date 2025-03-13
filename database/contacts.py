@@ -6,7 +6,7 @@ from database.base import SqlAlchemyBase
 
 class Contacts(SqlAlchemyBase):
     __tablename__ = "contacts"
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     title = Column(Text, default=None)
     url = Column(Text, default=None)
     sequence_number = Column(Integer, default=None)

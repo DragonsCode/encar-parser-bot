@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Text
+from sqlalchemy import Column, DateTime, Text, BigInteger, String
 from datetime import datetime
 
 from database.base import SqlAlchemyBase
@@ -6,7 +6,8 @@ from database.base import SqlAlchemyBase
 
 class Settings(SqlAlchemyBase):
     __tablename__ = "settings"
-    key = Column(Text, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    key = Column(String(255), unique=True)
     name = Column(Text, default=None)
     description = Column(Text, default=None)
     value = Column(Text, default=None)

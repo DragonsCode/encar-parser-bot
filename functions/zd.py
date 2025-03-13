@@ -2,8 +2,10 @@ import zendriver as zd
 from bs4 import BeautifulSoup
 import asyncio
 
-async def parse_cars():
-    url = "http://www.encar.com/dc/dc_carsearchlist.do?carType=kor"
+async def parse_cars(car_type: str):
+    # if not car_type in ['ev', 'kor']:
+    #     return []
+    url = f"http://www.encar.com/dc/dc_carsearchlist.do?carType={car_type}"
     
     browser = await zd.start(headless=True)
     page = await browser.get(url)
@@ -19,6 +21,7 @@ async def parse_cars():
     
     car_items = soup.select('ul.car_list > li')
     cars = []
+    print(f"Found {len(car_items)} cars")
     for item in car_items:
         try:
             link_elem = item.find('a', class_='newLink')
@@ -45,6 +48,6 @@ async def parse_cars():
     return cars
 
 if __name__ == "__main__":
-    cars = asyncio.run(parse_cars())
+    cars = asyncio.run(parse_cars('kor'))
     for car in cars:
         print(f"ID: {car['carid']}, Название: {car['name']}, Цена: {car['price']} won, Ссылка: {car['link']}")

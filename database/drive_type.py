@@ -3,8 +3,8 @@ from sqlalchemy import Column, BigInteger, Text
 from database.base import SqlAlchemyBase
 
 
-class DriverType(SqlAlchemyBase):
-    __tablename__ = "driver_type"
+class DriveType(SqlAlchemyBase):
+    __tablename__ = "drive_type"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     name = Column(Text, nullable=False)
 

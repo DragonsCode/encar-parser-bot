@@ -6,7 +6,7 @@ from database.base import SqlAlchemyBase
 
 class Car(SqlAlchemyBase):
     __tablename__ = "car"
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True) # является уникальным carid из сайта
     manufacture_id = Column(BigInteger, ForeignKey("manufacture.id"))
     model_id = Column(BigInteger, ForeignKey("models.id"))
     series_id = Column(BigInteger, ForeignKey("series.id"))

@@ -6,7 +6,7 @@ from database.base import SqlAlchemyBase
 
 class Subscription(SqlAlchemyBase):
     __tablename__ = "subscription"
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("users.id"))
     tariff_id = Column(BigInteger, ForeignKey("tariffs.id"))
     subscription_end = Column(DateTime, default=None)
