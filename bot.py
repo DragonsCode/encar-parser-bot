@@ -4,7 +4,8 @@ import logging
 from os import getenv
 from database.db_session import global_init
 from tgbot.handlers import commands_router
-from functions import parse_cars
+# from functions import parse_cars
+from functions.mobile import parse_full_car_info, parse_cars, parse_car_details, parse_accident_summary
 
 
 TG_BOT_TOKEN = getenv("TG_BOT_TOKEN")
@@ -15,7 +16,7 @@ DB_PORT = getenv("DB_PORT")
 DB_NAME = getenv("DB_NAME")
 
 
-async def main():
+async def main(run_bot=True):
     logging.basicConfig(level=logging.INFO)
     
     # Инициализация базы данных
@@ -38,12 +39,24 @@ async def main():
     # scheduler.start()
 
     # Запуск парсера
-    print("Запускаю парсинг...")
-    res = await parse_cars('kor')
-    print("CARS: ", res)
-    
-    await dp.start_polling(bot)
+    # print("Запускаю парсинг...")
+    # res = await parse_cars('kor', max_pages=1)
+    # print("CARS: ", res)
+    # car = res[0]
+    # car_id = car['id']
+    # car['url'] = car['url'].replace('https://car.encar.com', '')
+    # details = await parse_car_details(car['url'])
+    accident_data = await parse_accident_summary(str(38945752))
+    # print(f"SELECTED CAR: {car}")
+    # print(f"URL: {car['url']}")
+    # print(f"CAR ID: {car_id}")
+    # print(f"DETAILS: {details}")
+    print(f"ACCIDENTS: {accident_data}")
+
+    if run_bot:
+        # Запуск бота
+        await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(False))
