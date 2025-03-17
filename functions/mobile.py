@@ -11,30 +11,33 @@ import re
 # Ваш API-ключ от RuCaptcha
 RUCAPTCHA_API_KEY = '5568f74281346b5ec0124237ff51da51'  # Замените на реальный ключ
 
+# Глобальный браузер
+browser = None
+
+async def init_browser():
+    """Инициализирует глобальный браузер."""
+    global browser
+    browser = await zd.start(headless=False)
+
+async def close_browser():
+    """Закрывает глобальный браузер."""
+    global browser
+    if browser:
+        await browser.stop()
+
 # Функция для получения курса валют (KRW -> RUB)
 async def get_exchange_rate():
     async with aiohttp.ClientSession() as session:
         async with session.get('https://api.exchangerate-api.com/v4/latest/KRW') as response:
             data = await response.json()
-            return data['rates']['RUB']  # Курс KRW к RUB
+            return data['rates']['RUB']
 
 # Основная функция для получения HTML с обработкой капчи
 async def get_html_content(base_url: str, params: dict = None):
-    """
-    Открывает браузер, получает HTML-контент страницы.
-    Если есть капча, решает её через TwoCaptcha и перенаправляет на исходный URL.
-    
-    Аргументы:
-        base_url (str): Базовый URL страницы.
-        params (dict): Параметры запроса (например, {'page': 1, 'search': '...'}).
-    
-    Возвращает:
-        str: HTML-контент страницы или None при ошибке.
-    """
+    global browser
     url = base_url if not params else f"{base_url}?{urllib.parse.urlencode(params)}"
-    browser = await zd.start(headless=False)
     page = await browser.get(url)
-    await asyncio.sleep(20)
+    await asyncio.sleep(10)
     html = await page.get_content()
 
     with open('index.html', 'w', encoding='utf-8') as f:
@@ -74,12 +77,8 @@ async def get_html_content(base_url: str, params: dict = None):
                 html = await page.get_content()
             else:
                 print("Не удалось решить капчу")
-                await browser.stop()
                 return None
-        else:
-            print("Не удалось найти sitekey в HTML. Пытаемся продолжить парсинг...")
-            
-    await browser.stop()
+    
     with open('index.html', 'w', encoding='utf-8') as f:
         f.write(html)
     return html
@@ -94,7 +93,7 @@ def solve_captcha(sitekey: str, url: str):
         print(f"Ошибка при решении капчи: {e}")
         return None
 
-# Парсинг основной информации о машинах с пагинацией
+# Парсинг списка автомобилей
 async def parse_cars(car_type: str, max_pages: int = None):
     """
     Парсит список автомобилей с мобильной версии сайта с учетом пагинации.
@@ -167,10 +166,11 @@ async def parse_cars(car_type: str, max_pages: int = None):
                 continue
         
         page += 1
-        await asyncio.sleep(2)  # Задержка между запросами, чтобы не перегружать сервер
+        await asyncio.sleep(2)
     
     return all_cars
 
+# Парсинг деталей автомобиля
 async def parse_car_details(url: str):
     html = await get_html_content(url)
     if not html:
@@ -269,49 +269,51 @@ async def parse_accident_summary(carid: str):
         result['flood'] = None
         result['death'] = None
     
-    # Дата проверки (check_dttm) из <dd> с "2025/01/31"
-    check_date_elem = soup.find('dd', class_='ReportAccidentSummary_txt__fVCew')
-    if check_date_elem:
-        check_date_str = check_date_elem.text.strip()  # "2025/01/31"
-        result['check_dttm'] = datetime.strptime(check_date_str, '%Y/%m/%d')
-    else:
-        result['check_dttm'] = None
+    try:
+        # Дата проверки (check_dttm) из <dd> с "2025/01/31"
+        check_date_elem = soup.find('dd', class_='ReportAccidentSummary_txt__fVCew')
+        if check_date_elem:
+            check_date_str = check_date_elem.text.strip()  # "2025/01/31"
+            result['check_dttm'] = datetime.strptime(check_date_str, '%Y/%m/%d')
+        else:
+            result['check_dttm'] = None
+    except:
+        # Дата проверки (check_dttm) из <dd> после "정보조회일"
+        check_date_elem = soup.find('dt', string='정보조회일')
+        if check_date_elem:
+            check_date_str = check_date_elem.find_next_sibling('dd').text.strip()  # "2025/01/31"
+            result['check_dttm'] = datetime.strptime(check_date_str, '%Y/%m/%d')
+        else:
+            result['check_dttm'] = None
     
-    # Дата публикации (publication_dttm) из <span class="ReportAccidentInfo_date__oweNo">
-    publication_date_elem = soup.find('span', class_='ReportAccidentInfo_date__oweNo')
-    if publication_date_elem:
-        publication_date_str = publication_date_elem.text.split(' ')[-1]  # "2025년 01월 31일"
-        result['publication_dttm'] = datetime.strptime(publication_date_str, '%Y-%m-%d')
-    else:
-        result['publication_dttm'] = None
+    try:
+        # Дата публикации (publication_dttm) из <span class="ReportAccidentInfo_date__oweNo">
+        publication_date_elem = soup.find('span', class_='ReportAccidentInfo_date__oweNo')
+        if publication_date_elem:
+            publication_date_str = publication_date_elem.text.split(' ')[-1]  # "2025-01-31"
+            result['publication_dttm'] = datetime.strptime(publication_date_str, '%Y-%m-%d')
+        else:
+            result['publication_dttm'] = None
+    except:
+        # Дата публикации (publication_dttm) из <span class="ReportAccidentInfo_date__oweNo">
+        publication_date_elem = soup.find('span', class_='ReportAccidentInfo_date__oweNo')
+        if publication_date_elem:
+            publication_date_str = publication_date_elem.text.strip()  # "2025년 01월 31일"
+            result['publication_dttm'] = datetime.strptime(publication_date_str, '%Y년 %m월 %d일')
+        else:
+            result['publication_dttm'] = None
     
     return result
 
-# Основная функция парсинга
-async def parse_full_car_info(car_type: str, max_pages: int = None):
-    """
-    Парсит полную информацию об автомобилях и сохраняет в базу данных.
-    
-    Аргументы:
-        car_type (str): Тип автомобилей ('kor' или 'ev').
-        max_pages (int, optional): Максимальное количество страниц для парсинга.
-    """
-    exchange_rate = await get_exchange_rate()
-    cars_basic = await parse_cars(car_type, max_pages)
-    
-    async with DBApi() as db:
-        for car in cars_basic:
-            car_id = car['id']
-            
-            existing_car = await db.get_car_by_id(car_id)
-            if existing_car:
-                print(f"Автомобиль с id={car_id} уже существует, пропускаем")
-                continue
+# Параллельный парсинг деталей и страховки с семафором
+async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
+    async with sem:  # Ограничиваем доступ к задаче с помощью семафора
+        try:
             car['url'] = car['url'].replace('https://car.encar.com', '')
             details = await parse_car_details(car['url'])
             car.update(details)
             
-            accident_data = await parse_accident_summary(str(car_id))
+            accident_data = await parse_accident_summary(str(car['id']))
             car.update(accident_data)
             
             # Здесь предполагается, что поля manufacture, model, series нужно извлечь из name
@@ -321,87 +323,106 @@ async def parse_full_car_info(car_type: str, max_pages: int = None):
             model_name = name_parts[1] if len(name_parts) > 1 else "Unknown"
             series_name = name_parts[2] if len(name_parts) > 2 else "Unknown"
             
-            manufacture = await db.get_manufacture_by_name(manufacture_name)
-            if not manufacture:
-                manufacture = await db.create_manufacture(manufacture_name)
-            car['manufacture_id'] = manufacture.id
-            
-            model = await db.get_model_by_name(model_name)
-            if not model:
-                model = await db.create_model(manufacture_id=car['manufacture_id'], name=model_name)
-            car['model_id'] = model.id
-            
-            series = await db.get_series_by_name(series_name)
-            if not series:
-                series = await db.create_series(models_id=car['model_id'], name=series_name)
-            car['series_id'] = series.id
-            
-            equipment = car.get('equipment')
-            if equipment:
-                equip = await db.get_equipment_by_name(equipment)
-                if not equip:
-                    equip = await db.create_equipment(series_id=car['series_id'], name=equipment)
-                car['equipment_id'] = equip.id
-            else:
-                car['equipment_id'] = None
-            
-            engine_type = car.get('engine_type')
-            if engine_type:
-                eng_type = await db.get_engine_type_by_name(engine_type)
-                if not eng_type:
-                    eng_type = await db.create_engine_type(engine_type)
-                car['engine_type_id'] = eng_type.id
-            else:
-                car['engine_type_id'] = None
-            
-            drive_type = car.get('drive_type')
-            if drive_type:
-                drv_type = await db.get_drive_type_by_name(drive_type)
-                if not drv_type:
-                    drv_type = await db.create_drive_type(drive_type)
-                car['drive_type_id'] = drv_type.id
-            else:
-                car['drive_type_id'] = None
-            
-            car_color = car.get('car_color')
-            if car_color:
-                color = await db.get_car_color_by_name(car_color)
-                if not color:
-                    color = await db.create_car_color(car_color)
-                car['car_color_id'] = color.id
-            else:
-                car['car_color_id'] = None
-            
-            car['price_rub'] = int(car['price_won'] * exchange_rate) if car['price_won'] else None
-            
-            car_data = {
-                'id': car['id'],
-                'manufacture_id': car['manufacture_id'],
-                'model_id': car['model_id'],
-                'series_id': car['series_id'],
-                'equipment_id': car['equipment_id'],
-                'engine_type_id': car['engine_type_id'],
-                'drive_type_id': car['drive_type_id'],
-                'car_color_id': car['car_color_id'],
-                'mileage': car.get('mileage'),
-                'price_won': car['price_won'],
-                'price_rub': car['price_rub'],
-                'date_release': car.get('date_release'),
-                'publication_dttm': car.get('publication_dttm'),
-                'check_dttm': car.get('check_dttm'),
-                'change_ownership': car.get('change_ownership'),
-                'all_traffic_accident': car.get('all_traffic_accident'),
-                'traffic_accident_owner': car.get('traffic_accident_owner'),
-                'traffic_accident_other': car.get('traffic_accident_other'),
-                'theft': car.get('theft'),
-                'flood': car.get('flood'),
-                'death': car.get('death'),
-                'url': car['url']
-            }
-            
-            await db.create_car(**car_data)
-            print(f"Добавлен автомобиль с id={car_id}")
+            async with DBApi() as db:
+                manufacture = await db.get_manufacture_by_name(manufacture_name)
+                if not manufacture:
+                    manufacture = await db.create_manufacture(manufacture_name)
+                car['manufacture_id'] = manufacture.id
+                
+                model = await db.get_model_by_name(model_name)
+                if not model:
+                    model = await db.create_model(manufacture_id=car['manufacture_id'], name=model_name)
+                car['model_id'] = model.id
+                
+                series = await db.get_series_by_name(series_name)
+                if not series:
+                    series = await db.create_series(models_id=car['model_id'], name=series_name)
+                car['series_id'] = series.id
+                
+                equipment = car.get('equipment')
+                if equipment:
+                    equip = await db.get_equipment_by_name(equipment)
+                    if not equip:
+                        equip = await db.create_equipment(series_id=car['series_id'], name=equipment)
+                    car['equipment_id'] = equip.id
+                else:
+                    car['equipment_id'] = None
+                
+                engine_type = car.get('engine_type')
+                if engine_type:
+                    eng_type = await db.get_engine_type_by_name(engine_type)
+                    if not eng_type:
+                        eng_type = await db.create_engine_type(engine_type)
+                    car['engine_type_id'] = eng_type.id
+                else:
+                    car['engine_type_id'] = None
+                
+                drive_type = car.get('drive_type')
+                if drive_type:
+                    drv_type = await db.get_drive_type_by_name(drive_type)
+                    if not drv_type:
+                        drv_type = await db.create_drive_type(drive_type)
+                    car['drive_type_id'] = drv_type.id
+                else:
+                    car['drive_type_id'] = None
+                
+                car_color = car.get('car_color')
+                if car_color:
+                    color = await db.get_car_color_by_name(car_color)
+                    if not color:
+                        color = await db.create_car_color(car_color)
+                    car['car_color_id'] = color.id
+                else:
+                    car['car_color_id'] = None
+                
+                car['price_rub'] = int(car['price_won'] * exchange_rate) if car['price_won'] else None
+                
+                car_data = {
+                    'id': car['id'],
+                    'manufacture_id': car['manufacture_id'],
+                    'model_id': car['model_id'],
+                    'series_id': car['series_id'],
+                    'equipment_id': car['equipment_id'],
+                    'engine_type_id': car['engine_type_id'],
+                    'drive_type_id': car['drive_type_id'],
+                    'car_color_id': car['car_color_id'],
+                    'mileage': car.get('mileage'),
+                    'price_won': car['price_won'],
+                    'price_rub': car['price_rub'],
+                    'date_release': car.get('date_release'),
+                    'publication_dttm': car.get('publication_dttm'),
+                    'check_dttm': car.get('check_dttm'),
+                    'change_ownership': car.get('change_ownership'),
+                    'all_traffic_accident': car.get('all_traffic_accident'),
+                    'traffic_accident_owner': car.get('traffic_accident_owner'),
+                    'traffic_accident_other': car.get('traffic_accident_other'),
+                    'theft': car.get('theft'),
+                    'flood': car.get('flood'),
+                    'death': car.get('death'),
+                    'url': car['url']
+                }
+                
+                await db.create_car(**car_data)
+                print(f"Добавлен автомобиль с id={car['id']}")
+        except Exception as e:
+            print(f"Ошибка при обработке автомобиля {car['id']}: {e}")
+
+# Основная функция с многозадачностью и семафором
+async def parse_full_car_info(car_type: str, max_pages: int = None):
+    await init_browser()
+    try:
+        exchange_rate = await get_exchange_rate()
+        cars_basic = await parse_cars(car_type, max_pages)
+        
+        # Создаем семафор с лимитом 5 параллельных задач
+        sem = asyncio.Semaphore(5)
+        
+        # Создаем задачи с использованием семафора
+        tasks = [fetch_car_full_info(car, exchange_rate, sem) for car in cars_basic]
+        await asyncio.gather(*tasks, return_exceptions=True)
+    finally:
+        await close_browser()
 
 # Запуск парсера
 if __name__ == "__main__":
-    asyncio.run(parse_cars('kor', max_pages=1))
+    asyncio.run(parse_full_car_info('kor', max_pages=1))

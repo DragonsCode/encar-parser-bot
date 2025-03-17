@@ -5,7 +5,7 @@ from os import getenv
 from database.db_session import global_init
 from tgbot.handlers import commands_router
 # from functions import parse_cars
-from functions.mobile import parse_full_car_info, parse_cars, parse_car_details, parse_accident_summary
+from functions.mobile import parse_full_car_info, parse_cars, parse_car_details, parse_accident_summary, init_browser
 
 
 TG_BOT_TOKEN = getenv("TG_BOT_TOKEN")
@@ -26,7 +26,7 @@ async def main(run_bot=True):
         host=DB_HOST,
         port=DB_PORT,
         dbname=DB_NAME,
-        delete_db=True  # Установите True, если нужно пересоздать таблицы
+        delete_db=False  # Установите True, если нужно пересоздать таблицы
     )
     
     bot = Bot(token=TG_BOT_TOKEN)
@@ -39,19 +39,22 @@ async def main(run_bot=True):
     # scheduler.start()
 
     # Запуск парсера
+    # await init_browser()
     # print("Запускаю парсинг...")
-    # res = await parse_cars('kor', max_pages=1)
+    # res = await parse_cars('kor', max_pages=2)
+    # print("Количество автомобилей: ", len(res))
     # print("CARS: ", res)
     # car = res[0]
     # car_id = car['id']
     # car['url'] = car['url'].replace('https://car.encar.com', '')
     # details = await parse_car_details(car['url'])
-    accident_data = await parse_accident_summary(str(38945752))
+    # accident_data = await parse_accident_summary(str(car['id']))
     # print(f"SELECTED CAR: {car}")
     # print(f"URL: {car['url']}")
     # print(f"CAR ID: {car_id}")
     # print(f"DETAILS: {details}")
-    print(f"ACCIDENTS: {accident_data}")
+    # print(f"ACCIDENTS: {accident_data}")
+    await parse_full_car_info('kor', max_pages=1)
 
     if run_bot:
         # Запуск бота
