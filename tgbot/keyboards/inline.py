@@ -10,12 +10,12 @@ def get_menu_keyboard() -> InlineKeyboardMarkup:
 
 def get_link_keyboard(url: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(url=url)
+    builder.button(text='Открыть ссылку', url=url)
     builder.adjust(1)
     return builder.as_markup()
 
 def get_web_app_keyboard(url: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(web_app=WebAppInfo(url=url))
+    builder.button(text='Открыть приложение', web_app=WebAppInfo(url=url))
     builder.adjust(1)
     return builder.as_markup()

@@ -27,6 +27,12 @@ class DBApi(BaseDBApi):
         self._sess.add(car)
         await self._sess.commit()
         return car
+    
+    async def get_all_car_ids(self):
+        """Получает все ID автомобилей."""
+        async with self.engine.acquire() as conn:
+            result = await conn.execute("SELECT id FROM cars")
+            return [row['id'] for row in await result.fetchall()]
 
     async def get_car_by_id(self, car_id: int) -> Car:
         """Получает автомобиль по ID."""
@@ -184,6 +190,9 @@ class DBApi(BaseDBApi):
     # Методы для таблицы Users
     async def create_user(self, id: int, username: str = None, first_name: str = None) -> Users:
         """Создает нового пользователя."""
+        user = await self.get_user_by_id(id)
+        if user:
+            return user
         user = Users(id=id, username=username, first_name=first_name)
         self._sess.add(user)
         await self._sess.commit()
@@ -224,6 +233,14 @@ class DBApi(BaseDBApi):
         """Получает подписку пользователя."""
         result = await self._sess.execute(select(Subscription).where(Subscription.user_id == user_id))
         return result.scalars().first()
+    
+    async def get_expiring_subscriptions(self, start_time: datetime, end_time: datetime) -> list[Subscription]:
+        """Получает подписки, истекающие в заданном временном интервале."""
+        query = select(Subscription).where(
+            Subscription.subscription_end.between(start_time, end_time)
+        )
+        result = await self._sess.execute(query)
+        return result.scalars().all()
 
     # Методы для таблицы Tariffs
     async def create_tariff(self, name: str, description: str, days_count: int, price: float, filters_count: int) -> Tariffs:
