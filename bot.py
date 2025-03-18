@@ -2,20 +2,14 @@ from aiogram import Bot, Dispatcher
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import asyncio
 import logging
-from os import getenv
 from database.db_session import global_init
+from config import DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME
 from database import DBApi
 from tgbot.handlers import commands_router
 # from functions import parse_cars
 from functions.mobile import parse_full_car_info, parse_cars, parse_car_details, parse_accident_summary, init_browser
 from tasks import run_parser_periodically, check_subscriptions
 
-
-DB_USER = getenv("DB_USER")
-DB_PASSWORD = getenv("DB_PASSWORD")
-DB_HOST = getenv("DB_HOST")
-DB_PORT = getenv("DB_PORT")
-DB_NAME = getenv("DB_NAME")
 
 async def get_bot_token():
     async with DBApi() as db:

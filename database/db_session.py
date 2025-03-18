@@ -12,7 +12,7 @@ async def global_init(user, password, host, port, dbname, delete_db=False):
 
     if __factory:
         return
-
+    # postgresql+asyncpg для postgres и mysql+aiomysql для mysql
     conn_str = f'mysql+aiomysql://{user}:{password}@{host}:{port}/{dbname}'
     print(f"Подключение к базе данных по адресу {conn_str}")
 

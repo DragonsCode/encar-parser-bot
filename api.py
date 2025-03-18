@@ -1,11 +1,34 @@
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from api.dependencies import telegram_auth, admin_auth
 from api.routers import filters, subscriptions, tariffs, contacts, payhistory, references
+from database.db_session import global_init
+from config import DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME
+
+# Lifespan для инициализации и завершения
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: инициализация базы данных
+    print("Инициализация базы данных...")
+    await global_init(
+        user=DB_USER,
+        password=DB_PASSWORD,
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        delete_db=False
+    )
+    print("База данных успешно инициализирована")
+    yield
+    # Shutdown: завершение работы (опционально)
+    print("Завершение работы сервера")
 
 app = FastAPI(
     title="Car Parser API",
     description="API для управления фильтрами, подписками и справочниками",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Подключаем роутеры
@@ -28,6 +51,7 @@ async def test_telegram_auth(user_id: int = Depends(telegram_auth)):
 @app.get("/test-admin-auth")
 async def test_admin_auth(is_admin: bool = Depends(admin_auth)):
     return {"message": "Вы авторизованы как администратор"}
+
 
 if __name__ == "__main__":
     import uvicorn
