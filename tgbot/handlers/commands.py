@@ -20,7 +20,7 @@ async def command_start_handler(message: Message, command: CommandObject):
 async def command_help_handler(message: Message, command: CommandObject):
     await message.answer(f"Привет, {message.from_user.full_name}!\nЯ бот для поиска авто на Encar.com! Нажми на /start")
 
-@commands_router.message(Command("search"))
+# @commands_router.message(Command("search"))
 async def command_search_handler(message: Message, command: CommandObject):
     result = await parse_cars(command.args)
     for car in result:

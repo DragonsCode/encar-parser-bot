@@ -1,3 +1,4 @@
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import asyncio
 from datetime import datetime, timedelta
 from aiogram import Bot
@@ -54,4 +55,7 @@ async def check_subscriptions():
 
 # Для тестирования вручную
 if __name__ == "__main__":
-    asyncio.run(check_subscriptions())
+    # asyncio.run(check_subscriptions())
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(check_subscriptions, 'interval', hours=48)
+    scheduler.start()

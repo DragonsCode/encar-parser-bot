@@ -25,7 +25,7 @@ async def get_bot_token():
         return setting.value
 
 
-async def main(run_bot=True, run_scheduler=True, run_parser=True):
+async def main(run_bot=True, run_parser=False):
     logging.basicConfig(level=logging.INFO)
     
     # Инициализация базы данных
@@ -45,12 +45,12 @@ async def main(run_bot=True, run_scheduler=True, run_parser=True):
     dp.include_router(commands_router)
 
     # Запуск планировщика
-    if run_scheduler:
-        scheduler = AsyncIOScheduler()
-        scheduler.add_job(run_parser_periodically, 'interval', hours=48)
-        scheduler.add_job(check_subscriptions, 'interval', hours=24)
-        scheduler.start()
-        logging.info("Планировщик запущен")
+    # if run_scheduler:
+    #     scheduler = AsyncIOScheduler()
+    #     scheduler.add_job(run_parser_periodically, 'interval', hours=48)
+    #     scheduler.add_job(check_subscriptions, 'interval', hours=24)
+    #     scheduler.start()
+    #     logging.info("Планировщик запущен")
 
     # Запуск парсера
     if run_parser:
@@ -77,4 +77,4 @@ async def main(run_bot=True, run_scheduler=True, run_parser=True):
 
 
 if __name__ == "__main__":
-    asyncio.run(main(run_bot=True, run_scheduler=False, run_parser=False))
+    asyncio.run(main(run_bot=True, run_parser=False))
