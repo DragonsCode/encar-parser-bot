@@ -1,5 +1,6 @@
 from datetime import datetime
 from sqlalchemy.future import select
+from sqlalchemy import func
 
 from database.base_db_api import BaseDBApi
 from database.car import Car
@@ -215,11 +216,27 @@ class DBApi(BaseDBApi):
         self._sess.add(filter)
         await self._sess.commit()
         return filter
+    
+    async def get_filter_by_id(self, filter_id: int):
+        result = await self._sess.execute(select(Filters).where(Filters.id == filter_id))
+        return result.scalars().first()
 
     async def get_filters_by_user(self, user_id: int) -> list[Filters]:
         """Получает все фильтры пользователя."""
         result = await self._sess.execute(select(Filters).where(Filters.user_id == user_id))
         return result.scalars().all()
+    
+    async def get_filters_count_by_user(self, user_id: int):
+        result = await self._sess.execute(select(func.count(Filters.id)).where(Filters.user_id == user_id))
+        return result.scalar()
+    
+    async def delete_filter(self, filter_id: int):
+        filter_obj = await self.get_filter_by_id(filter_id)
+        if filter_obj:
+            await self._sess.delete(filter_obj)
+            await self._sess.commit()
+            return True
+        return False
 
     # Методы для таблицы Subscription
     async def create_subscription(self, user_id: int, tariff_id: int, subscription_end: datetime) -> Subscription:
@@ -228,6 +245,18 @@ class DBApi(BaseDBApi):
         self._sess.add(subscription)
         await self._sess.commit()
         return subscription
+    
+    async def edit_subscription(self, id: int, tariff_id: int = None, subscription_end: datetime = None):
+        sub = await self._sess.execute(select(Subscription).where(Subscription.id == id))
+        sub_obj = sub.scalars().first()
+        if sub_obj:
+            if tariff_id:
+                sub_obj.tariff_id = tariff_id
+            if subscription_end:
+                sub_obj.subscription_end = subscription_end
+            await self._sess.commit()
+            return sub_obj
+        return None
 
     async def get_subscription_by_user(self, user_id: int) -> Subscription:
         """Получает подписку пользователя."""
@@ -241,6 +270,18 @@ class DBApi(BaseDBApi):
         )
         result = await self._sess.execute(query)
         return result.scalars().all()
+    
+    async def get_subscription_by_id(self, sub_id: int):
+        result = await self._sess.execute(select(Subscription).where(Subscription.id == sub_id))
+        return result.scalars().first()
+
+    async def delete_subscription(self, sub_id: int):
+        sub = await self.get_subscription_by_id(sub_id)
+        if sub:
+            await self._sess.delete(sub)
+            await self._sess.commit()
+            return True
+        return False
 
     # Методы для таблицы Tariffs
     async def create_tariff(self, name: str, description: str, days_count: int, price: float, filters_count: int) -> Tariffs:
@@ -267,6 +308,16 @@ class DBApi(BaseDBApi):
         self._sess.add(pay_history)
         await self._sess.commit()
         return pay_history
+    
+    async def edit_payhistory(self, id: int, successfully: bool = None):
+        pay = await self._sess.execute(select(PayHistory).where(PayHistory.id == id))
+        pay_obj = pay.scalars().first()
+        if pay_obj:
+            if successfully is not None:
+                pay_obj.successfully = successfully
+            await self._sess.commit()
+            return pay_obj
+        return None
 
     async def get_pay_history_by_user(self, user_id: int) -> list[PayHistory]:
         """Получает историю платежей пользователя."""
