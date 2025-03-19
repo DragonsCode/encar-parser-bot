@@ -16,7 +16,7 @@ async def init_browser():
     """Инициализирует глобальный браузер."""
     global browser
     print("Инициализация браузера...")
-    browser = await zd.start(headless=False, no_sandbox=True)
+    browser = await zd.start(headless=True, no_sandbox=True)
 
 async def close_browser():
     """Закрывает глобальный браузер."""
