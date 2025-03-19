@@ -1,5 +1,6 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import asyncio
+import logging
 from datetime import datetime, timedelta
 from aiogram import Bot
 from database import DBApi
@@ -66,6 +67,7 @@ async def run_scheduler():
         dbname=DB_NAME,
         delete_db=False  # Установите True, если нужно пересоздать таблицы
     )
+    # check_subscriptions()  # Вызовите функцию для проверки подписок
     scheduler = AsyncIOScheduler()
     scheduler.add_job(check_subscriptions, 'interval', hours=24)
     scheduler.start()
@@ -78,4 +80,5 @@ async def run_scheduler():
         print("Планировщик остановлен")
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     asyncio.run(run_scheduler())
