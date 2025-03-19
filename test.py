@@ -3,6 +3,7 @@ import logging
 from os import getenv
 from database.db_session import global_init
 from database import DBApi
+from tasks import run_translation
 
 from tasks import check_subscriptions
 
@@ -26,7 +27,7 @@ async def main():
     )
 
     # test
-    await check_subscriptions()
+    await run_translation()
 
 
 if __name__ == "__main__":

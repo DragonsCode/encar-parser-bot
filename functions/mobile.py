@@ -1,4 +1,4 @@
-# functions/parser.py
+# functions/mobile.py
 import zendriver as zd
 from bs4 import BeautifulSoup
 import asyncio
@@ -8,9 +8,24 @@ from twocaptcha import TwoCaptcha
 from database import DBApi
 import urllib.parse
 import re
+from deep_translator import GoogleTranslator
 
 # Глобальный браузер
 browser = None
+
+# Глобальный объект переводчика
+translator = GoogleTranslator(source='ko', target='ru')
+
+async def translate_text(text: str) -> str:
+    """Переводит текст с корейского на русский, если он не на ASCII."""
+    if text and not all(ord(c) < 128 for c in text):  # Проверяем, что текст не на ASCII (корейский)
+        try:
+            translated = translator.translate(text)
+            return translated
+        except Exception as e:
+            print(f"Ошибка перевода '{text}': {e}")
+            return text  # Возвращаем оригинал при ошибке
+    return text
 
 async def init_browser():
     """Инициализирует глобальный браузер."""
@@ -25,14 +40,12 @@ async def close_browser():
         print("Закрытие браузера...")
         await browser.stop()
 
-# Функция для получения курса валют (KRW -> RUB)
 async def get_exchange_rate():
     async with aiohttp.ClientSession() as session:
         async with session.get('https://api.exchangerate-api.com/v4/latest/KRW') as response:
             data = await response.json()
             return data['rates']['RUB']
 
-# Основная функция для получения HTML с обработкой капчи в заданной вкладке
 async def get_html_content(base_url: str, page, params: dict = None):
     url = base_url if not params else f"{base_url}?{urllib.parse.urlencode(params)}"
     print(f"Запрос страницы: {url}")
@@ -85,7 +98,7 @@ async def get_html_content(base_url: str, page, params: dict = None):
 
 async def solve_captcha(sitekey: str, url: str):
     async with DBApi() as db:
-        setting = await db.get_setting_by_key("rucaptcha_token")  # Получаем токен из базы
+        setting = await db.get_setting_by_key("rucaptcha_token")
         if not setting or not setting.value:
             raise ValueError("Токен RuCaptcha не найден в настройках базы данных")
         api_key = setting.value
@@ -99,7 +112,6 @@ async def solve_captcha(sitekey: str, url: str):
         print(f"Ошибка при решении капчи: {e}")
         return None
 
-# Парсинг списка автомобилей
 async def parse_cars(car_type: str, max_pages: int = None):
     base_url = "https://car.encar.com/list/car"
     if car_type == 'kor':
@@ -117,7 +129,6 @@ async def parse_cars(car_type: str, max_pages: int = None):
     page_num = 1
     all_cars = []
     
-    # Создаем первую вкладку для парсинга списка
     page = await browser.get(base_url, new_tab=True)
     try:
         while True:
@@ -171,7 +182,6 @@ async def parse_cars(car_type: str, max_pages: int = None):
     
     return all_cars
 
-# Парсинг деталей автомобиля
 async def parse_car_details(url: str, page):
     html = await get_html_content(url, page)
     if not html:
@@ -216,7 +226,6 @@ async def parse_car_details(url: str, page):
         'equipment': ', '.join(equipment) if equipment else None
     }
 
-# Парсинг страховой истории
 async def parse_accident_summary(carid: str, page):
     url = f"https://fem.encar.com/cars/report/accident/{carid}"
     html = await get_html_content(url, page)
@@ -290,7 +299,6 @@ async def parse_accident_summary(carid: str, page):
     
     return result
 
-# Функция очистки старых автомобилей
 async def clean_old_cars(parsed_ids):
     async with DBApi() as db:
         existing_ids = set(await db.get_all_car_ids())
@@ -299,10 +307,8 @@ async def clean_old_cars(parsed_ids):
             await db.delete_car(car_id)
             print(f"Удален автомобиль с id={car_id} из базы")
 
-# Параллельный парсинг деталей и страховки с семафором и отдельными вкладками
 async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
     async with sem:
-        # Создаем новую вкладку для каждой машины
         page = await browser.get('about:blank', new_tab=True)
         try:
             print(f"Начало обработки автомобиля {car['id']} в вкладке {id(page)}")
@@ -314,9 +320,9 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
             car.update(accident_data)
             
             name_parts = car['name'].split(maxsplit=2)
-            manufacture_name = name_parts[0] if len(name_parts) > 0 else "Unknown"
-            model_name = name_parts[1] if len(name_parts) > 1 else "Unknown"
-            series_name = name_parts[2] if len(name_parts) > 2 else "Unknown"
+            manufacture_name = await translate_text(name_parts[0] if len(name_parts) > 0 else "Unknown")
+            model_name = await translate_text(name_parts[1] if len(name_parts) > 1 else "Unknown")
+            series_name = await translate_text(name_parts[2] if len(name_parts) > 2 else "Unknown")
             
             async with DBApi() as db:
                 manufacture = await db.get_manufacture_by_name(manufacture_name)
@@ -336,6 +342,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                 
                 equipment = car.get('equipment')
                 if equipment:
+                    equipment = await translate_text(equipment)
                     equip = await db.get_equipment_by_name(equipment)
                     if not equip:
                         equip = await db.create_equipment(series_id=car['series_id'], name=equipment)
@@ -345,6 +352,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                 
                 engine_type = car.get('engine_type')
                 if engine_type:
+                    engine_type = await translate_text(engine_type)
                     eng_type = await db.get_engine_type_by_name(engine_type)
                     if not eng_type:
                         eng_type = await db.create_engine_type(engine_type)
@@ -354,6 +362,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                 
                 drive_type = car.get('drive_type')
                 if drive_type:
+                    drive_type = await translate_text(drive_type)
                     drv_type = await db.get_drive_type_by_name(drive_type)
                     if not drv_type:
                         drv_type = await db.create_drive_type(drive_type)
@@ -363,6 +372,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                 
                 car_color = car.get('car_color')
                 if car_color:
+                    car_color = await translate_text(car_color)
                     color = await db.get_car_color_by_name(car_color)
                     if not color:
                         color = await db.create_car_color(car_color)
@@ -404,7 +414,6 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
         finally:
             await page.close()
 
-# Основная функция с парсингом обоих типов и очисткой
 async def parse_full_car_info(max_pages: int = None):
     await init_browser()
     try:
