@@ -4,7 +4,7 @@ from aiogram.utils.web_app import safe_parse_webapp_init_data
 from database import DBApi
 from typing import Optional
 
-async def get_telegram_user(authorization: str = Header(...)):
+async def get_telegram_user(auth: str = Header(...)):
     """Проверяет авторизацию через Telegram и возвращает user_id."""
     async with DBApi() as db:
         setting = await db.get_setting_by_key("telegram_bot_token")
@@ -13,24 +13,24 @@ async def get_telegram_user(authorization: str = Header(...)):
             raise HTTPException(status_code=500, detail="Токен Telegram бота не настроен")
         bot_token = setting.value
 
-    if authorization == test_setting.value:
+    if auth == test_setting.value:
         return 235519518
     
     try:
-        web_app_data = safe_parse_webapp_init_data(token=bot_token, init_data=authorization)
+        web_app_data = safe_parse_webapp_init_data(token=bot_token, init_data=auth)
         user_id = web_app_data.user.id
         return user_id
     except ValueError:
         raise HTTPException(status_code=401, detail="Неверные данные авторизации Telegram")
 
-async def get_admin_token(authorization: str = Header(...), login: str = Header(...)):
+async def get_admin_token(auth: str = Header(...), login: str = Header(...)):
     """Проверяет авторизацию админа через токен."""
     async with DBApi() as db:
         setting = await db.get_setting_by_key("admin_token")
         login = await db.get_setting_by_key("admin_login")
         if not setting or not setting.value or not login or not login.value:
             raise HTTPException(status_code=500, detail="Данные админа не настроены")
-        if authorization != setting.value or login.value != login:
+        if auth != setting.value or login.value != login:
             raise HTTPException(status_code=403, detail="Неверные данные админа")
     
     return True
