@@ -31,9 +31,8 @@ class DBApi(BaseDBApi):
     
     async def get_all_car_ids(self):
         """Получает все ID автомобилей."""
-        async with self.engine.acquire() as conn:
-            result = await conn.execute("SELECT id FROM cars")
-            return [row['id'] for row in await result.fetchall()]
+        result = await self._sess.execute(select(Car.id))  # Предполагается, что модель называется Car
+        return [row[0] for row in result.fetchall()]
 
     async def get_car_by_id(self, car_id: int) -> Car:
         """Получает автомобиль по ID."""
