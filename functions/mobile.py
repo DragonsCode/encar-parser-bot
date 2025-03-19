@@ -91,9 +91,6 @@ async def get_html_content(base_url: str, page, params: dict = None):
             else:
                 print("Не удалось решить капчу")
                 return None
-    
-    with open(f'index_{id(page)}.html', 'w', encoding='utf-8') as f:
-        f.write(html)
     return html
 
 async def solve_captcha(sitekey: str, url: str):
