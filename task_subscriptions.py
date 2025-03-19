@@ -70,5 +70,12 @@ async def run_scheduler():
     scheduler.add_job(check_subscriptions, 'interval', hours=24)
     scheduler.start()
 
+    # Держим событийный цикл активным
+    try:
+        await asyncio.Event().wait()  # Бесконечное ожидание
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()
+        print("Планировщик остановлен")
+
 if __name__ == "__main__":
     asyncio.run(run_scheduler())
