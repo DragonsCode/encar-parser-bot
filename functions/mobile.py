@@ -36,7 +36,7 @@ async def get_exchange_rate():
 async def get_html_content(base_url: str, page, params: dict = None):
     url = base_url if not params else f"{base_url}?{urllib.parse.urlencode(params)}"
     print(f"Запрос страницы: {url}")
-    await page.goto(url)
+    await page.get(url)
     await asyncio.sleep(10)
     html = await page.get_content()
 
