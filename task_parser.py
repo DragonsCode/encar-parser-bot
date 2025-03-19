@@ -21,7 +21,7 @@ async def run_scheduler():
         dbname=DB_NAME,
         delete_db=False  # Установите True, если нужно пересоздать таблицы
     )
-    run_parser_periodically()  # Вызовите функцию для проверки парсера
+    await run_parser_periodically()  # Вызовите функцию для проверки парсера
     scheduler = AsyncIOScheduler()
     scheduler.add_job(run_parser_periodically, 'interval', hours=48)
     scheduler.start()

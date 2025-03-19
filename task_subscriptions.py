@@ -67,7 +67,7 @@ async def run_scheduler():
         dbname=DB_NAME,
         delete_db=False  # Установите True, если нужно пересоздать таблицы
     )
-    # check_subscriptions()  # Вызовите функцию для проверки подписок
+    # await check_subscriptions()  # Вызовите функцию для проверки подписок
     scheduler = AsyncIOScheduler()
     scheduler.add_job(check_subscriptions, 'interval', hours=24)
     scheduler.start()
