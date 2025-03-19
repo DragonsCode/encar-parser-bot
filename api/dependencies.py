@@ -23,18 +23,15 @@ async def get_telegram_user(authorization: str = Header(...)):
     except ValueError:
         raise HTTPException(status_code=401, detail="Неверные данные авторизации Telegram")
 
-async def get_admin_token(authorization: str = Header(...)):
-    """Проверяет авторизацию админа через Bearer-токен."""
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Неверный формат токена. Используйте Bearer")
-    
-    token = authorization.split("Bearer ")[1]
+async def get_admin_token(authorization: str = Header(...), login: str = Header(...)):
+    """Проверяет авторизацию админа через токен."""
     async with DBApi() as db:
         setting = await db.get_setting_by_key("admin_token")
-        if not setting or not setting.value:
-            raise HTTPException(status_code=500, detail="Токен админа не настроен")
-        if token != setting.value:
-            raise HTTPException(status_code=403, detail="Неверный токен админа")
+        login = await db.get_setting_by_key("admin_login")
+        if not setting or not setting.value or not login or not login.value:
+            raise HTTPException(status_code=500, detail="Данные админа не настроены")
+        if authorization != setting.value or login.value != login:
+            raise HTTPException(status_code=403, detail="Неверные данные админа")
     
     return True
 
