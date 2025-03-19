@@ -7,6 +7,9 @@ router = APIRouter(prefix="/payhistory", tags=["PayHistory"])
 
 @router.post("/create")
 async def create_payhistory(pay_data: PayHistoryCreate, is_admin: bool = Depends(admin_auth)):
+    """
+    Depends on admin_auth
+    """
     async with DBApi() as db:
         success = await db.create_payhistory(**pay_data.model_dump())  # Предполагается метод
         if not success:
@@ -15,8 +18,11 @@ async def create_payhistory(pay_data: PayHistoryCreate, is_admin: bool = Depends
 
 @router.post("/edit")
 async def edit_payhistory(pay_data: PayHistoryEdit, is_admin: bool = Depends(admin_auth)):
+    """
+    Depends on telegram_auth
+    """
     async with DBApi() as db:
-        success = await db.edit_payhistory(**pay_data.dict(exclude_unset=True))  # Предполагается метод
+        success = await db.edit_payhistory(**pay_data.model_dump(exclude_unset=True))  # Предполагается метод
         if not success:
             raise HTTPException(status_code=404, detail="Запись оплаты не найдена")
         return {"success": True}

@@ -1,6 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from api.dependencies import telegram_auth, admin_auth
 from api.routers import filters, subscriptions, tariffs, contacts, payhistory, references
 from database.db_session import global_init
@@ -38,6 +39,15 @@ app.include_router(tariffs.router)
 app.include_router(contacts.router)
 app.include_router(payhistory.router)
 app.include_router(references.router)
+
+# Настройка CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Разрешить все домены (можно указать конкретные)
+    allow_credentials=True,
+    allow_methods=["*"],  # Разрешить все методы (GET, POST, DELETE и т.д.)
+    allow_headers=["*"],  # Разрешить все заголовки
+)
 
 # Тестовый эндпоинт для проверки работоспособности
 @app.get("/")

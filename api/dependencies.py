@@ -14,7 +14,7 @@ async def get_telegram_user(authorization: str = Header(...)):
         bot_token = setting.value
 
     if authorization == test_setting.value:
-        return 1
+        return 235519518
     
     try:
         web_app_data = safe_parse_webapp_init_data(token=bot_token, init_data=authorization)

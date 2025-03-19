@@ -8,6 +8,9 @@ router = APIRouter(prefix="/contact", tags=["Contacts"])
 
 @router.get("/", response_model=List[ContactResponse])
 async def get_contacts(user_id: int = Depends(telegram_auth)):
+    """
+    Depends on telegram_auth
+    """
     async with DBApi() as db:
         contacts = await db.get_all_contacts()  # Предполагается метод
         return contacts

@@ -8,6 +8,9 @@ router = APIRouter(prefix="/tariffs", tags=["Tariffs"])
 
 @router.get("/", response_model=List[TariffResponse])
 async def get_tariffs(user_id: int = Depends(telegram_auth)):
+    """
+    Depends on telegram_auth
+    """
     async with DBApi() as db:
         tariffs = await db.get_all_tariffs()  # Предполагается метод
         return tariffs

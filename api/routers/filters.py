@@ -8,6 +8,9 @@ router = APIRouter(prefix="/filter", tags=["Filters"])
 
 @router.post("/create", response_model=FilterResponse)
 async def create_filter(filter_data: FilterCreate, user_id: int = Depends(telegram_auth)):
+    """
+    Depends on telegram_auth
+    """
     async with DBApi() as db:
         # Проверка лимита фильтров (по подписке)
         subscription = await db.get_subscription_by_user(user_id)
@@ -25,6 +28,9 @@ async def create_filter(filter_data: FilterCreate, user_id: int = Depends(telegr
 
 @router.get("/{user_id}", response_model=List[FilterResponse])
 async def get_filters(user_id: int, auth_user_id: int = Depends(telegram_auth)):
+    """
+    Depends on telegram_auth
+    """
     if user_id != auth_user_id:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
     async with DBApi() as db:
@@ -33,6 +39,9 @@ async def get_filters(user_id: int, auth_user_id: int = Depends(telegram_auth)):
 
 @router.delete("/{id}")
 async def delete_filter(id: int, is_admin: bool = Depends(admin_auth)):
+    """
+    Depends on admin_auth
+    """
     async with DBApi() as db:
         success = await db.delete_filter(id)  # Предполагается метод
         if not success:
