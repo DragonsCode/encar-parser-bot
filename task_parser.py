@@ -1,7 +1,7 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import asyncio
 import logging
-from functions import parse_full_car_info  # Импортируем основную функцию
+from functions.mobile import parse_full_car_info  # Импортируем основную функцию
 from database.db_session import global_init
 from config import DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME
 
