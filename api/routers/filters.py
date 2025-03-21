@@ -19,7 +19,7 @@ async def create_filter(filter_data: FilterCreate, user_id: int = Depends(telegr
         
         tariff = await db.get_tariff_by_id(subscription.tariff_id)  # Предполагается метод
         filters_count = await db.get_filters_count_by_user(user_id)  # Предполагается метод
-        if filters_count >= tariff.filter_count:
+        if filters_count >= tariff.filters_count:
             raise HTTPException(status_code=403, detail="Превышен лимит фильтров. Удалите старые или обновите подписку")
         
         # Создание фильтра
