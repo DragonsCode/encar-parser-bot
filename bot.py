@@ -29,7 +29,7 @@ async def main(run_bot=True, run_parser=False):
         host=DB_HOST,
         port=DB_PORT,
         dbname=DB_NAME,
-        delete_db=False  # Установите True, если нужно пересоздать таблицы
+        delete_db=True  # Установите True, если нужно пересоздать таблицы
     )
     tg_bot_token = await get_bot_token()
     bot = Bot(token=tg_bot_token)

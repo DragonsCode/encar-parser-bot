@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI):
         host=DB_HOST,
         port=DB_PORT,
         dbname=DB_NAME,
-        delete_db=True
+        delete_db=False
     )
     print("База данных успешно инициализирована")
     yield
