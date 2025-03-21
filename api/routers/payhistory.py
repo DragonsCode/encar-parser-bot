@@ -11,7 +11,7 @@ async def create_payhistory(pay_data: PayHistoryCreate, is_admin: bool = Depends
     Depends on admin_auth
     """
     async with DBApi() as db:
-        success = await db.create_payhistory(**pay_data.model_dump())  # Предполагается метод
+        success = await db.create_pay_history(**pay_data.model_dump())  # Предполагается метод
         if not success:
             raise HTTPException(status_code=400, detail="Ошибка создания записи оплаты")
         return {"success": True}

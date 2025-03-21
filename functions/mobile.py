@@ -41,12 +41,14 @@ async def close_browser():
         await browser.stop()
 
 async def get_exchange_rate():
+    """Получает текущий курс обмена KRW к RUB."""
     async with aiohttp.ClientSession() as session:
         async with session.get('https://api.exchangerate-api.com/v4/latest/KRW') as response:
             data = await response.json()
             return data['rates']['RUB']
 
 async def get_html_content(base_url: str, page, params: dict = None):
+    """Получает HTML-контент страницы с обработкой reCAPTCHA."""
     url = base_url if not params else f"{base_url}?{urllib.parse.urlencode(params)}"
     print(f"Запрос страницы: {url}")
     await page.get(url)
@@ -94,6 +96,7 @@ async def get_html_content(base_url: str, page, params: dict = None):
     return html
 
 async def solve_captcha(sitekey: str, url: str):
+    """Решает reCAPTCHA v2 с использованием TwoCaptcha."""
     async with DBApi() as db:
         setting = await db.get_setting_by_key("rucaptcha_token")
         if not setting or not setting.value:
@@ -110,6 +113,7 @@ async def solve_captcha(sitekey: str, url: str):
         return None
 
 async def parse_cars(car_type: str, max_pages: int = None):
+    """Генератор, возвращающий автомобили постранично."""
     base_url = "https://car.encar.com/list/car"
     if car_type == 'kor':
         type_car = "car"
@@ -124,7 +128,6 @@ async def parse_cars(car_type: str, max_pages: int = None):
     
     search = f'{{"type":"{type_car}","action":"{action}","title":"{title}","toggle":{{}},"layer":"","sort":"MobileModifiedDate"}}'
     page_num = 1
-    all_cars = []
     
     page = await browser.get(base_url, new_tab=True)
     try:
@@ -143,6 +146,7 @@ async def parse_cars(car_type: str, max_pages: int = None):
                 break
             
             print(f"Найдено {len(car_items)} автомобилей на странице {page_num} для {car_type}")
+            page_cars = []
             for item in car_items:
                 try:
                     link_elem = item.find('a')
@@ -158,7 +162,7 @@ async def parse_cars(car_type: str, max_pages: int = None):
                     price_elem = item.find('span', class_='ItemBigImage_num__Fu15_')
                     price = int(price_elem.text.strip().replace(',', '')) * 10_000 if price_elem else None
                     
-                    all_cars.append({
+                    page_cars.append({
                         "id": carid,
                         "name": name,
                         "year": year,
@@ -172,14 +176,14 @@ async def parse_cars(car_type: str, max_pages: int = None):
                     print(f"Ошибка парсинга элемента на странице {page_num} для {car_type}: {e}")
                     continue
             
+            yield page_cars  # Возвращаем автомобили текущей страницы
             page_num += 1
-            await asyncio.sleep(2)
+            await asyncio.sleep(2)  # Пауза между страницами
     finally:
         await page.close()
-    
-    return all_cars
 
 async def parse_car_details(url: str, page):
+    """Парсит детальную информацию об автомобиле."""
     html = await get_html_content(url, page)
     if not html:
         return {}
@@ -224,6 +228,7 @@ async def parse_car_details(url: str, page):
     }
 
 async def parse_accident_summary(carid: str, page):
+    """Парсит сводку по авариям автомобиля."""
     url = f"https://fem.encar.com/cars/report/accident/{carid}"
     html = await get_html_content(url, page)
     if not html:
@@ -296,15 +301,8 @@ async def parse_accident_summary(carid: str, page):
     
     return result
 
-async def clean_old_cars(parsed_ids):
-    async with DBApi() as db:
-        existing_ids = set(await db.get_all_car_ids())
-        ids_to_delete = existing_ids - parsed_ids
-        for car_id in ids_to_delete:
-            await db.delete_car(car_id)
-            print(f"Удален автомобиль с id={car_id} из базы")
-
 async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
+    """Обрабатывает полную информацию об автомобиле и записывает в БД."""
     async with sem:
         page = await browser.get('about:blank', new_tab=True)
         try:
@@ -317,62 +315,66 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
             car.update(accident_data)
             
             name_parts = car['name'].split(maxsplit=2)
-            manufacture_name = await translate_text(name_parts[0] if len(name_parts) > 0 else "Unknown")
-            model_name = await translate_text(name_parts[1] if len(name_parts) > 1 else "Unknown")
-            series_name = await translate_text(name_parts[2] if len(name_parts) > 2 else "Unknown")
+            manufacture_name_original = name_parts[0] if len(name_parts) > 0 else "Unknown"
+            model_name_original = name_parts[1] if len(name_parts) > 1 else "Unknown"
+            series_name_original = name_parts[2] if len(name_parts) > 2 else "Unknown"
+            
+            manufacture_name_translated = await translate_text(manufacture_name_original)
+            model_name_translated = await translate_text(model_name_original)
+            series_name_translated = await translate_text(series_name_original)
             
             async with DBApi() as db:
-                manufacture = await db.get_manufacture_by_name(manufacture_name)
+                manufacture = await db.get_manufacture_by_translated(manufacture_name_translated)
                 if not manufacture:
-                    manufacture = await db.create_manufacture(manufacture_name)
+                    manufacture = await db.create_manufacture(name=manufacture_name_original, translated=manufacture_name_translated)
                 car['manufacture_id'] = manufacture.id
                 
-                model = await db.get_model_by_name(model_name)
+                model = await db.get_model_by_translated(model_name_translated)
                 if not model:
-                    model = await db.create_model(manufacture_id=car['manufacture_id'], name=model_name)
+                    model = await db.create_model(manufacture_id=car['manufacture_id'], name=model_name_original, translated=model_name_translated)
                 car['model_id'] = model.id
                 
-                series = await db.get_series_by_name(series_name)
+                series = await db.get_series_by_translated(series_name_translated)
                 if not series:
-                    series = await db.create_series(models_id=car['model_id'], name=series_name)
+                    series = await db.create_series(models_id=car['model_id'], name=series_name_original, translated=series_name_translated)
                 car['series_id'] = series.id
                 
-                equipment = car.get('equipment')
-                if equipment:
-                    equipment = await translate_text(equipment)
-                    equip = await db.get_equipment_by_name(equipment)
+                equipment_original = car.get('equipment')
+                if equipment_original:
+                    equipment_translated = await translate_text(equipment_original)
+                    equip = await db.get_equipment_by_translated(equipment_translated)
                     if not equip:
-                        equip = await db.create_equipment(series_id=car['series_id'], name=equipment)
+                        equip = await db.create_equipment(series_id=car['series_id'], name=equipment_original, translated=equipment_translated)
                     car['equipment_id'] = equip.id
                 else:
                     car['equipment_id'] = None
                 
-                engine_type = car.get('engine_type')
-                if engine_type:
-                    engine_type = await translate_text(engine_type)
-                    eng_type = await db.get_engine_type_by_name(engine_type)
+                engine_type_original = car.get('engine_type')
+                if engine_type_original:
+                    engine_type_translated = await translate_text(engine_type_original)
+                    eng_type = await db.get_engine_type_by_translated(engine_type_translated)
                     if not eng_type:
-                        eng_type = await db.create_engine_type(engine_type)
+                        eng_type = await db.create_engine_type(name=engine_type_original, translated=engine_type_translated)
                     car['engine_type_id'] = eng_type.id
                 else:
                     car['engine_type_id'] = None
                 
-                drive_type = car.get('drive_type')
-                if drive_type:
-                    drive_type = await translate_text(drive_type)
-                    drv_type = await db.get_drive_type_by_name(drive_type)
+                drive_type_original = car.get('drive_type')
+                if drive_type_original:
+                    drive_type_translated = await translate_text(drive_type_original)
+                    drv_type = await db.get_drive_type_by_translated(drive_type_translated)
                     if not drv_type:
-                        drv_type = await db.create_drive_type(drive_type)
+                        drv_type = await db.create_drive_type(name=drive_type_original, translated=drive_type_translated)
                     car['drive_type_id'] = drv_type.id
                 else:
                     car['drive_type_id'] = None
                 
-                car_color = car.get('car_color')
-                if car_color:
-                    car_color = await translate_text(car_color)
-                    color = await db.get_car_color_by_name(car_color)
+                car_color_original = car.get('car_color')
+                if car_color_original:
+                    car_color_translated = await translate_text(car_color_original)
+                    color = await db.get_car_color_by_translated(car_color_translated)
                     if not color:
-                        color = await db.create_car_color(car_color)
+                        color = await db.create_car_color(name=car_color_original, translated=car_color_translated)
                     car['car_color_id'] = color.id
                 else:
                     car['car_color_id'] = None
@@ -412,28 +414,28 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
             await page.close()
 
 async def parse_full_car_info(max_pages: int = None):
+    """Основная функция для парсинга полной информации об автомобилях."""
     await init_browser()
     try:
         exchange_rate = await get_exchange_rate()
         
-        print("Парсинг автомобилей типа 'kor'...")
-        kor_cars = await parse_cars('kor', max_pages)
-        print("Парсинг автомобилей типа 'ev'...")
-        ev_cars = await parse_cars('ev', max_pages)
+        for car_type in ['kor', 'ev']:
+            print(f"Парсинг автомобилей типа '{car_type}'...")
+            async for page_cars in parse_cars(car_type, max_pages):
+                async with DBApi() as db:
+                    existing_ids = set(await db.get_all_car_ids())
+                    new_cars = [car for car in page_cars if car['id'] not in existing_ids]
+                    print(f"Найдено новых автомобилей на странице: {len(new_cars)} из {len(page_cars)}")
+                
+                sem = asyncio.Semaphore(5)
+                tasks = [fetch_car_full_info(car, exchange_rate, sem) for car in new_cars]
+                await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Очищаем память после обработки страницы
+                del page_cars
+                del new_cars
+                await asyncio.sleep(1)  # Пауза для освобождения памяти
         
-        all_cars = kor_cars + ev_cars
-        parsed_ids = {car['id'] for car in all_cars}
-        
-        async with DBApi() as db:
-            existing_ids = set(await db.get_all_car_ids())
-            new_cars = [car for car in all_cars if car['id'] not in existing_ids]
-            print(f"Найдено новых автомобилей: {len(new_cars)} из {len(all_cars)}")
-        
-        sem = asyncio.Semaphore(5)
-        tasks = [fetch_car_full_info(car, exchange_rate, sem) for car in new_cars]
-        await asyncio.gather(*tasks, return_exceptions=True)
-        
-        print("Очистка старых автомобилей из базы...")
-        await clean_old_cars(parsed_ids)
+        print("Парсинг завершен. Очистку старых записей можно выполнить отдельно.")
     finally:
         await close_browser()

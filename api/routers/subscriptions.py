@@ -15,14 +15,12 @@ async def create_subscription(sub_data: SubscriptionCreate, is_admin: bool = Dep
         return await db.get_subscription_by_id(sub.id)  # Предполагается метод с полной информацией
 
 @router.get("/{user_id}", response_model=SubscriptionResponse)
-async def get_subscription(user_id: int, auth_user_id: int = Depends(telegram_auth)):
+async def get_subscription(auth_user_id: int = Depends(telegram_auth)):
     """
     Depends on telegram_auth
     """
-    if user_id != auth_user_id:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
     async with DBApi() as db:
-        sub = await db.get_subscription_by_user(user_id)
+        sub = await db.get_subscription_by_user(auth_user_id)
         if not sub:
             raise HTTPException(status_code=404, detail="Подписка не найдена")
         return sub
@@ -33,7 +31,7 @@ async def edit_subscription(sub_data: SubscriptionEdit, is_admin: bool = Depends
     Depends on admin_auth
     """
     async with DBApi() as db:
-        sub = await db.edit_subscription(**sub_data.dict(exclude_unset=True))  # Предполагается метод
+        sub = await db.edit_subscription(**sub_data.model_dump(exclude_unset=True))  # Предполагается метод
         if not sub:
             raise HTTPException(status_code=404, detail="Подписка не найдена")
         return sub

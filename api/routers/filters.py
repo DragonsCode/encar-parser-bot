@@ -27,14 +27,12 @@ async def create_filter(filter_data: FilterCreate, user_id: int = Depends(telegr
         return await db.get_filter_by_id(filter_obj.id)  # Предполагается метод с полной информацией
 
 @router.get("/{user_id}", response_model=List[FilterResponse])
-async def get_filters(user_id: int, auth_user_id: int = Depends(telegram_auth)):
+async def get_filters(auth_user_id: int = Depends(telegram_auth)):
     """
     Depends on telegram_auth
     """
-    if user_id != auth_user_id:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
     async with DBApi() as db:
-        filters = await db.get_filters_by_user(user_id)  # Предполагается метод
+        filters = await db.get_filters_by_user(auth_user_id)  # Предполагается метод
         return filters
 
 @router.delete("/{id}")
