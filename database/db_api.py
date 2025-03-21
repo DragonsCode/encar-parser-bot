@@ -62,9 +62,9 @@ class DBApi(BaseDBApi):
         return False
 
     # Методы для таблицы CarColor
-    async def create_car_color(self, name: str) -> CarColor:
+    async def create_car_color(self, name: str, translated: str) -> CarColor:
         """Создает новый цвет автомобиля."""
-        color = CarColor(name=name)
+        color = CarColor(name=name, translated=translated)
         self._sess.add(color)
         await self._sess.commit()
         return color
@@ -73,6 +73,11 @@ class DBApi(BaseDBApi):
         """Получает цвет автомобиля по названию."""
         result = await self._sess.execute(select(CarColor).where(CarColor.name == name))
         return result.scalars().first()
+    
+    async def get_car_color_by_translated(self, translated: str) -> CarColor:
+        """Получает цвет автомобиля по переводу."""
+        result = await self._sess.execute(select(CarColor).where(CarColor.translated == translated))
+        return result.scalars().first()
 
     async def get_all_car_colors(self) -> list[CarColor]:
         """Получает все цвета автомобилей."""
@@ -80,9 +85,9 @@ class DBApi(BaseDBApi):
         return result.scalars().all()
 
     # Методы для таблицы Manufacture
-    async def create_manufacture(self, name: str) -> Manufacture:
+    async def create_manufacture(self, name: str, translated: str) -> Manufacture:
         """Создает нового производителя."""
-        manufacture = Manufacture(name=name)
+        manufacture = Manufacture(name=name, translated=translated)
         self._sess.add(manufacture)
         await self._sess.commit()
         return manufacture
@@ -91,6 +96,11 @@ class DBApi(BaseDBApi):
         """Получает производителя по названию."""
         result = await self._sess.execute(select(Manufacture).where(Manufacture.name == name))
         return result.scalars().first()
+    
+    async def get_manufacture_by_translated(self, translated: str) -> Manufacture:
+        """Получает производителя по переводу."""
+        result = await self._sess.execute(select(Manufacture).where(Manufacture.translated == translated))
+        return result.scalars().first()
 
     async def get_all_manufactures(self) -> list[Manufacture]:
         """Получает всех производителей."""
@@ -98,9 +108,9 @@ class DBApi(BaseDBApi):
         return result.scalars().all()
 
     # Методы для таблицы Models
-    async def create_model(self, manufacture_id: int, name: str) -> Models:
+    async def create_model(self, manufacture_id: int, name: str, translated: str) -> Models:
         """Создает новую модель автомобиля."""
-        model = Models(manufacture_id=manufacture_id, name=name)
+        model = Models(manufacture_id=manufacture_id, name=name, translated=translated)
         self._sess.add(model)
         await self._sess.commit()
         return model
@@ -109,6 +119,11 @@ class DBApi(BaseDBApi):
         """Получает модель по названию."""
         result = await self._sess.execute(select(Models).where(Models.name == name))
         return result.scalars().first()
+    
+    async def get_model_by_translated(self, translated: str) -> Models:
+        """Получает модель по переводу."""
+        result = await self._sess.execute(select(Models).where(Models.translated == translated))
+        return result.scalars().first()
 
     async def get_models_by_manufacture(self, manufacture_id: int) -> list[Models]:
         """Получает все модели по ID производителя."""
@@ -116,9 +131,9 @@ class DBApi(BaseDBApi):
         return result.scalars().all()
 
     # Методы для таблицы Series
-    async def create_series(self, models_id: int, name: str) -> Series:
+    async def create_series(self, models_id: int, name: str, translated: str) -> Series:
         """Создает новую серию модели."""
-        series = Series(models_id=models_id, name=name)
+        series = Series(models_id=models_id, name=name, translated=translated)
         self._sess.add(series)
         await self._sess.commit()
         return series
@@ -127,6 +142,11 @@ class DBApi(BaseDBApi):
         """Получает серию по названию."""
         result = await self._sess.execute(select(Series).where(Series.name == name))
         return result.scalars().first()
+    
+    async def get_series_by_translated(self, translated: str) -> Series:
+        """Получает серию по переводу."""
+        result = await self._sess.execute(select(Series).where(Series.translated == translated))
+        return result.scalars().first()
 
     async def get_series_by_model(self, models_id: int) -> list[Series]:
         """Получает все серии по ID модели."""
@@ -134,9 +154,9 @@ class DBApi(BaseDBApi):
         return result.scalars().all()
 
     # Методы для таблицы Equipment
-    async def create_equipment(self, series_id: int, name: str) -> Equipment:
+    async def create_equipment(self, series_id: int, name: str, translated: str) -> Equipment:
         """Создает новую комплектацию."""
-        equipment = Equipment(series_id=series_id, name=name)
+        equipment = Equipment(series_id=series_id, name=name, translated=translated)
         self._sess.add(equipment)
         await self._sess.commit()
         return equipment
@@ -145,6 +165,11 @@ class DBApi(BaseDBApi):
         """Получает комплектацию по названию."""
         result = await self._sess.execute(select(Equipment).where(Equipment.name == name))
         return result.scalars().first()
+    
+    async def get_equipment_by_translated(self, translated: str) -> Equipment:
+        """Получает комплектацию по переводу."""
+        result = await self._sess.execute(select(Equipment).where(Equipment.translated == translated))
+        return result.scalars().first()
 
     async def get_equipment_by_series(self, series_id: int) -> list[Equipment]:
         """Получает все комплектации по ID серии."""
@@ -152,9 +177,9 @@ class DBApi(BaseDBApi):
         return result.scalars().all()
 
     # Методы для таблицы EngineType
-    async def create_engine_type(self, name: str) -> EngineType:
+    async def create_engine_type(self, name: str, translated: str) -> EngineType:
         """Создает новый тип двигателя."""
-        engine_type = EngineType(name=name)
+        engine_type = EngineType(name=name, translated=translated)
         self._sess.add(engine_type)
         await self._sess.commit()
         return engine_type
@@ -163,6 +188,11 @@ class DBApi(BaseDBApi):
         """Получает тип двигателя по названию."""
         result = await self._sess.execute(select(EngineType).where(EngineType.name == name))
         return result.scalars().first()
+    
+    async def get_engine_type_by_translated(self, translated: str) -> EngineType:
+        """Получает тип двигателя по переводу."""
+        result = await self._sess.execute(select(EngineType).where(EngineType.translated == translated))
+        return result.scalars().first()
 
     async def get_all_engine_types(self) -> list[EngineType]:
         """Получает все типы двигателей."""
@@ -170,7 +200,7 @@ class DBApi(BaseDBApi):
         return result.scalars().all()
 
     # Методы для таблицы DriveType (предполагается, что это drive_type)
-    async def create_drive_type(self, name: str) -> DriveType:
+    async def create_drive_type(self, name: str, translated: str) -> DriveType:
         """Создает новый тип привода."""
         drive_type = DriveType(name=name)
         self._sess.add(drive_type)
@@ -180,6 +210,11 @@ class DBApi(BaseDBApi):
     async def get_drive_type_by_name(self, name: str) -> DriveType:
         """Получает тип привода по названию."""
         result = await self._sess.execute(select(DriveType).where(DriveType.name == name))
+        return result.scalars().first()
+    
+    async def get_drive_type_by_translated(self, translated: str) -> DriveType:
+        """Получает тип привода по переводу."""
+        result = await self._sess.execute(select(DriveType).where(DriveType.translated == translated))
         return result.scalars().first()
 
     async def get_all_drive_types(self) -> list[DriveType]:

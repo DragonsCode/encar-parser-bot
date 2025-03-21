@@ -8,6 +8,7 @@ class Series(SqlAlchemyBase):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     models_id = Column(BigInteger, ForeignKey("models.id"))
     name = Column(Text, nullable=False)
+    translated = Column(Text, nullable=False)
 
     def __str__(self):
         return self.name
@@ -17,6 +18,7 @@ class Series(SqlAlchemyBase):
             f"<{self.__class__.__name__}("
             f"id={self.id}, "
             f"models_id={self.models_id}, "
-            f"name={self.name}"
+            f"name={self.name}, "
+            f"translated={self.translated}"
             f")>"
         )

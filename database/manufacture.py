@@ -7,6 +7,7 @@ class Manufacture(SqlAlchemyBase):
     __tablename__ = "manufacture"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     name = Column(Text, nullable=False)
+    translated = Column(Text, nullable=False)
 
     def __str__(self):
         return self.name
@@ -15,6 +16,7 @@ class Manufacture(SqlAlchemyBase):
         return (
             f"<{self.__class__.__name__}("
             f"id={self.id}, "
-            f"name={self.name}"
+            f"name={self.name}, "
+            f"translated={self.translated}"
             f")>"
         )
