@@ -81,3 +81,4 @@ class PayHistoryEdit(BaseModel):
 class ReferenceResponse(BaseModel):
     id: int
     name: str
+    translated: str
