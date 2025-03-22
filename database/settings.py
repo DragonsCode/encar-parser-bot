@@ -15,7 +15,7 @@ class Settings(SqlAlchemyBase):
     update_dttm = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     def __str__(self):
-        return f'{self.user_id}'
+        return f'{self.name}'
 
     def __repr__(self):
         return (

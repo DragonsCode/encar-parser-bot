@@ -11,6 +11,7 @@ class PayHistory(SqlAlchemyBase):
     tariff_id = Column(BigInteger, ForeignKey("tariffs.id"))
     price = Column(Float, default=None)
     successfully = Column(Boolean, default=None)
+    # intellect_invoice_id = Column(BigInteger, nullable=True, unique=True)
     create_dttm = Column(DateTime, default=datetime.now)
     update_dttm = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
