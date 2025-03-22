@@ -54,9 +54,6 @@ async def get_html_content(base_url: str, page, params: dict = None):
     await page.get(url)
     await asyncio.sleep(10)
     html = await page.get_content()
-
-    with open(f'index_{id(page)}.html', 'w', encoding='utf-8') as f:
-        f.write(html)
     
     if "recaptcha" in html.lower():
         print("Обнаружена reCAPTCHA v2, решаем капчу...")
