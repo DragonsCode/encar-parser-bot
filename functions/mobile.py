@@ -17,15 +17,15 @@ browser = None
 translator = GoogleTranslator(source='ko', target='ru')
 
 async def translate_text(text: str) -> str:
-    """Переводит текст с корейского на русский, если он не на ASCII."""
+    """Переводит текст с корейского на русский, возвращает None при ошибке."""
     if text and not all(ord(c) < 128 for c in text):  # Проверяем, что текст не на ASCII (корейский)
         try:
             translated = translator.translate(text)
             return translated
         except Exception as e:
             print(f"Ошибка перевода '{text}': {e}")
-            return text  # Возвращаем оригинал при ошибке
-    return text
+            return None  # Возвращаем None при ошибке перевода
+    return text  # Если текст уже на ASCII, возвращаем его как есть
 
 async def init_browser():
     """Инициализирует глобальный браузер."""
@@ -54,6 +54,9 @@ async def get_html_content(base_url: str, page, params: dict = None):
     await page.get(url)
     await asyncio.sleep(10)
     html = await page.get_content()
+
+    with open(f'index_{id(page)}.html', 'w', encoding='utf-8') as f:
+        f.write(html)
     
     if "recaptcha" in html.lower():
         print("Обнаружена reCAPTCHA v2, решаем капчу...")
@@ -193,7 +196,15 @@ async def parse_car_details(url: str, page):
     engine_type_elem = soup.find('dd', text=re.compile(r'가솔린|디젤|전기|하이브리드'))
     engine_type = engine_type_elem.text.strip() if engine_type_elem else None
     
+    drive_type_dt = soup.find('dt', text='구동방식')
     drive_type = None
+    print(f"Найден drive_type_dt: {drive_type_dt}")
+    if drive_type_dt:
+        drive_type_elem = drive_type_dt.find_next_sibling('dd')
+        print(f"Найден drive_type_elem: {drive_type_elem}")
+        if drive_type_elem:
+            drive_type = drive_type_elem.text.strip()
+            print(f"Извлечён drive_type: {drive_type}")
     
     meta_desc = soup.find('meta', attrs={'name': 'description'})
     car_color = None
@@ -321,63 +332,72 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
             series_name_translated = await translate_text(series_name_original)
             
             async with DBApi() as db:
-                manufacture = await db.get_manufacture_by_translated(manufacture_name_translated)
+                # Работа с manufacture (поиск по name)
+                manufacture = await db.get_manufacture_by_name(manufacture_name_original)
                 if not manufacture:
                     manufacture = await db.create_manufacture(name=manufacture_name_original, translated=manufacture_name_translated)
                 car['manufacture_id'] = manufacture.id
                 
-                model = await db.get_model_by_translated(model_name_translated)
+                # Работа с model (поиск по name)
+                model = await db.get_model_by_name(model_name_original)
                 if not model:
                     model = await db.create_model(manufacture_id=car['manufacture_id'], name=model_name_original, translated=model_name_translated)
                 car['model_id'] = model.id
                 
-                series = await db.get_series_by_translated(series_name_translated)
+                # Работа с series (поиск по name)
+                series = await db.get_series_by_name(series_name_original)
                 if not series:
                     series = await db.create_series(models_id=car['model_id'], name=series_name_original, translated=series_name_translated)
                 car['series_id'] = series.id
                 
+                # Работа с equipment (поиск по name)
                 equipment_original = car.get('equipment')
                 if equipment_original:
                     equipment_translated = await translate_text(equipment_original)
-                    equip = await db.get_equipment_by_translated(equipment_translated)
+                    equip = await db.get_equipment_by_name(equipment_original)
                     if not equip:
                         equip = await db.create_equipment(series_id=car['series_id'], name=equipment_original, translated=equipment_translated)
                     car['equipment_id'] = equip.id
                 else:
                     car['equipment_id'] = None
                 
+                # Работа с engine_type (поиск по name)
                 engine_type_original = car.get('engine_type')
                 if engine_type_original:
                     engine_type_translated = await translate_text(engine_type_original)
-                    eng_type = await db.get_engine_type_by_translated(engine_type_translated)
+                    eng_type = await db.get_engine_type_by_name(engine_type_original)
                     if not eng_type:
                         eng_type = await db.create_engine_type(name=engine_type_original, translated=engine_type_translated)
                     car['engine_type_id'] = eng_type.id
                 else:
                     car['engine_type_id'] = None
                 
+                # Работа с drive_type (поиск по name)
                 drive_type_original = car.get('drive_type')
                 if drive_type_original:
                     drive_type_translated = await translate_text(drive_type_original)
-                    drv_type = await db.get_drive_type_by_translated(drive_type_translated)
+                    drv_type = await db.get_drive_type_by_name(drive_type_original)
                     if not drv_type:
                         drv_type = await db.create_drive_type(name=drive_type_original, translated=drive_type_translated)
                     car['drive_type_id'] = drv_type.id
                 else:
                     car['drive_type_id'] = None
                 
+                # Работа с car_color (поиск по name)
                 car_color_original = car.get('car_color')
                 if car_color_original:
                     car_color_translated = await translate_text(car_color_original)
-                    color = await db.get_car_color_by_translated(car_color_translated)
+                    color = await db.get_car_color_by_name(car_color_original)
                     if not color:
                         color = await db.create_car_color(name=car_color_original, translated=car_color_translated)
                     car['car_color_id'] = color.id
                 else:
                     car['car_color_id'] = None
                 
+                # Расчет цены в рублях
                 car['price_rub'] = int(car['price_won'] * exchange_rate) if car['price_won'] else None
                 
+                # Подготовка данных для записи в таблицу cars
                 car_data = {
                     'id': car['id'],
                     'manufacture_id': car['manufacture_id'],
