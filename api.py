@@ -4,6 +4,7 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from api.dependencies import telegram_auth, admin_auth
 from api.routers import filters, subscriptions, tariffs, contacts, payhistory, references
+from api.admin import car, contacts as admin_contacts, filters as admin_filters, payhistory as admin_payhistory, settings, subscription, tariffs as admin_tariffs, users
 from database.db_session import global_init
 from config import DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME
 
@@ -39,6 +40,16 @@ app.include_router(tariffs.router)
 app.include_router(contacts.router)
 app.include_router(payhistory.router)
 app.include_router(references.router)
+
+# Подключаем роутеры админ-панели
+app.include_router(car.router)
+app.include_router(admin_contacts.router)
+app.include_router(admin_filters.router)
+app.include_router(admin_payhistory.router)
+app.include_router(settings.router)
+app.include_router(subscription.router)
+app.include_router(admin_tariffs.router)
+app.include_router(users.router)
 
 # Настройка CORS
 app.add_middleware(

@@ -243,6 +243,28 @@ class DBApi(BaseDBApi):
         result = await self._sess.execute(select(Users))
         return result.scalars().all()
 
+    async def update_user(self, user_id: int, **kwargs) -> Users:
+        """Обновляет данные пользователя по ID."""
+        user = await self.get_user_by_id(user_id)
+        if user:
+            for key, value in kwargs.items():
+                if hasattr(user, key):
+                    setattr(user, key, value)
+            await self._sess.commit()
+            return user
+        print(f"Пользователь с id={user_id} не найден")
+        return None
+
+    async def delete_user(self, user_id: int) -> bool:
+        """Удаляет пользователя по ID."""
+        user = await self.get_user_by_id(user_id)
+        if user:
+            await self._sess.delete(user)
+            await self._sess.commit()
+            return True
+        print(f"Пользователь с id={user_id} не найден")
+        return False
+
     # Методы для таблицы Filters
     async def create_filter(self, user_id: int, **kwargs) -> Filters:
         """Создает новый фильтр для пользователя."""
@@ -271,6 +293,23 @@ class DBApi(BaseDBApi):
             await self._sess.commit()
             return True
         return False
+    
+    async def get_all_filters(self) -> list[Filters]:
+        """Получает все фильтры."""
+        result = await self._sess.execute(select(Filters))
+        return result.scalars().all()
+
+    async def update_filter(self, filter_id: int, **kwargs) -> Filters:
+        """Обновляет данные фильтра по ID."""
+        filter_obj = await self.get_filter_by_id(filter_id)
+        if filter_obj:
+            for key, value in kwargs.items():
+                if hasattr(filter_obj, key):
+                    setattr(filter_obj, key, value)
+            await self._sess.commit()
+            return filter_obj
+        print(f"Фильтр с id={filter_id} не найден")
+        return None
 
     # Методы для таблицы Subscription
     async def create_subscription(self, user_id: int, tariff_id: int, subscription_end: datetime) -> Subscription:
@@ -279,6 +318,50 @@ class DBApi(BaseDBApi):
         self._sess.add(subscription)
         await self._sess.commit()
         return subscription
+
+    async def get_all_subscriptions(self) -> list[Subscription]:
+        """Получает все подписки."""
+        result = await self._sess.execute(select(Subscription))
+        return result.scalars().all()
+
+    async def get_subscription_by_user(self, user_id: int) -> Subscription:
+        """Получает подписку пользователя."""
+        result = await self._sess.execute(select(Subscription).where(Subscription.user_id == user_id))
+        return result.scalars().first()
+
+    async def get_expiring_subscriptions(self, start_time: datetime, end_time: datetime) -> list[Subscription]:
+        """Получает подписки, истекающие в заданном временном интервале."""
+        query = select(Subscription).where(
+            Subscription.subscription_end.between(start_time, end_time)
+        )
+        result = await self._sess.execute(query)
+        return result.scalars().all()
+
+    async def get_subscription_by_id(self, sub_id: int) -> Subscription:
+        """Получает подписку по ID."""
+        result = await self._sess.execute(select(Subscription).where(Subscription.id == sub_id))
+        return result.scalars().first()
+
+    async def update_subscription(self, subscription_id: int, **kwargs) -> Subscription:
+        """Обновляет данные подписки по ID."""
+        subscription = await self.get_subscription_by_id(subscription_id)
+        if subscription:
+            for key, value in kwargs.items():
+                if hasattr(subscription, key):
+                    setattr(subscription, key, value)
+            await self._sess.commit()
+            return subscription
+        print(f"Подписка с id={subscription_id} не найдена")
+        return None
+
+    async def delete_subscription(self, sub_id: int) -> bool:
+        """Удаляет подписку по ID."""
+        sub = await self.get_subscription_by_id(sub_id)
+        if sub:
+            await self._sess.delete(sub)
+            await self._sess.commit()
+            return True
+        return False
     
     async def edit_subscription(self, id: int, tariff_id: int = None, subscription_end: datetime = None):
         sub = await self._sess.execute(select(Subscription).where(Subscription.id == id))
@@ -291,31 +374,6 @@ class DBApi(BaseDBApi):
             await self._sess.commit()
             return sub_obj
         return None
-
-    async def get_subscription_by_user(self, user_id: int) -> Subscription:
-        """Получает подписку пользователя."""
-        result = await self._sess.execute(select(Subscription).where(Subscription.user_id == user_id))
-        return result.scalars().first()
-    
-    async def get_expiring_subscriptions(self, start_time: datetime, end_time: datetime) -> list[Subscription]:
-        """Получает подписки, истекающие в заданном временном интервале."""
-        query = select(Subscription).where(
-            Subscription.subscription_end.between(start_time, end_time)
-        )
-        result = await self._sess.execute(query)
-        return result.scalars().all()
-    
-    async def get_subscription_by_id(self, sub_id: int):
-        result = await self._sess.execute(select(Subscription).where(Subscription.id == sub_id))
-        return result.scalars().first()
-
-    async def delete_subscription(self, sub_id: int):
-        sub = await self.get_subscription_by_id(sub_id)
-        if sub:
-            await self._sess.delete(sub)
-            await self._sess.commit()
-            return True
-        return False
 
     # Методы для таблицы Tariffs
     async def create_tariff(self, name: str, description: str, days_count: int, price: float, filters_count: int) -> Tariffs:
@@ -335,13 +393,93 @@ class DBApi(BaseDBApi):
         result = await self._sess.execute(select(Tariffs))
         return result.scalars().all()
 
+    async def update_tariff(self, tariff_id: int, **kwargs) -> Tariffs:
+        """Обновляет данные тарифа по ID."""
+        tariff = await self.get_tariff_by_id(tariff_id)
+        if tariff:
+            for key, value in kwargs.items():
+                if hasattr(tariff, key):
+                    setattr(tariff, key, value)
+            await self._sess.commit()
+            return tariff
+        print(f"Тариф с id={tariff_id} не найден")
+        return None
+
+    async def delete_tariff(self, tariff_id: int) -> bool:
+        """Удаляет тариф по ID."""
+        tariff = await self.get_tariff_by_id(tariff_id)
+        if tariff:
+            await self._sess.delete(tariff)
+            await self._sess.commit()
+            return True
+        print(f"Тариф с id={tariff_id} не найден")
+        return False
+
     # Методы для таблицы PayHistory
     async def create_pay_history(self, user_id: int, tariff_id: int, price: float, successfully: bool, **kwargs) -> PayHistory:
         """Создает запись в истории платежей."""
-        pay_history = PayHistory(user_id=user_id, tariff_id=tariff_id, price=price, successfully=successfully)
+        pay_history = PayHistory(user_id=user_id, tariff_id=tariff_id, price=price, successfully=successfully, **kwargs)
         self._sess.add(pay_history)
         await self._sess.commit()
         return pay_history
+
+    async def get_all_pay_histories(self) -> list[PayHistory]:
+        """Получает все записи в истории платежей."""
+        result = await self._sess.execute(select(PayHistory))
+        return result.scalars().all()
+
+    async def get_pay_history_by_id(self, pay_history_id: int) -> PayHistory:
+        """Получает запись в истории платежей по ID."""
+        result = await self._sess.execute(select(PayHistory).where(PayHistory.id == pay_history_id))
+        return result.scalars().first()
+
+    async def get_pay_history_by_user(self, user_id: int) -> list[PayHistory]:
+        """Получает историю платежей пользователя."""
+        result = await self._sess.execute(select(PayHistory).where(PayHistory.user_id == user_id))
+        return result.scalars().all()
+
+    async def get_last_payhistory_by_user(self, user_id: int) -> PayHistory:
+        """Получает последнюю запись в истории платежей пользователя."""
+        result = await self._sess.execute(select(PayHistory).where(PayHistory.user_id == user_id).order_by(PayHistory.id.desc()))
+        return result.scalars().first()
+
+    async def get_payhistory_by_invoice(self, invoice_id: int) -> PayHistory:
+        """Получает запись в истории платежей по invoice_id."""
+        result = await self._sess.execute(select(PayHistory).where(PayHistory.intellect_invoice_id == invoice_id))
+        return result.scalars().first()
+
+    async def update_pay_history(self, pay_history_id: int, **kwargs) -> PayHistory:
+        """Обновляет данные записи в истории платежей по ID."""
+        pay_history = await self.get_pay_history_by_id(pay_history_id)
+        if pay_history:
+            for key, value in kwargs.items():
+                if hasattr(pay_history, key):
+                    setattr(pay_history, key, value)
+            await self._sess.commit()
+            return pay_history
+        print(f"Запись в истории платежей с id={pay_history_id} не найдена")
+        return None
+
+    async def update_payhistory_by_invoice(self, invoice_id: int, successfully: bool = None):
+        """Обновляет запись в истории платежей по invoice_id."""
+        pay = await self._sess.execute(select(PayHistory).where(PayHistory.intellect_invoice_id == invoice_id))
+        pay_obj = pay.scalars().first()
+        if pay_obj:
+            if successfully is not None:
+                pay_obj.successfully = successfully
+            await self._sess.commit()
+            return pay_obj
+        return None
+
+    async def delete_pay_history(self, pay_history_id: int) -> bool:
+        """Удаляет запись в истории платежей по ID."""
+        pay_history = await self.get_pay_history_by_id(pay_history_id)
+        if pay_history:
+            await self._sess.delete(pay_history)
+            await self._sess.commit()
+            return True
+        print(f"Запись в истории платежей с id={pay_history_id} не найдена")
+        return False
     
     async def edit_payhistory(self, id: int, invoice_id: int = None, successfully: bool = None):
         pay = await self._sess.execute(select(PayHistory).where(PayHistory.id == id))
@@ -354,29 +492,6 @@ class DBApi(BaseDBApi):
             await self._sess.commit()
             return pay_obj
         return None
-    
-    async def update_payhistory_by_invoice(self, invoice_id: int, successfully: bool = None):
-        pay = await self._sess.execute(select(PayHistory).where(PayHistory.intellect_invoice_id == invoice_id))
-        pay_obj = pay.scalars().first()
-        if pay_obj:
-            if successfully is not None:
-                pay_obj.successfully = successfully
-            await self._sess.commit()
-            return pay_obj
-        return None
-
-    async def get_pay_history_by_user(self, user_id: int) -> list[PayHistory]:
-        """Получает историю платежей пользователя."""
-        result = await self._sess.execute(select(PayHistory).where(PayHistory.user_id == user_id))
-        return result.scalars().all()
-    
-    async def get_last_payhistory_by_user(self, user_id: int) -> PayHistory:
-        result = await self._sess.execute(select(PayHistory).where(PayHistory.user_id == user_id).order_by(PayHistory.id.desc()))
-        return result.scalars().first()
-    
-    async def get_payhistory_by_invoice(self, invoice_id: int) -> PayHistory:
-        result = await self._sess.execute(select(PayHistory).where(PayHistory.intellect_invoice_id == invoice_id))
-        return result.scalars().first()
 
     # Методы для таблицы Contacts
     async def create_contact(self, title: str, url: str, sequence_number: int) -> Contacts:
@@ -390,6 +505,33 @@ class DBApi(BaseDBApi):
         """Получает все контакты, отсортированные по sequence_number."""
         result = await self._sess.execute(select(Contacts).order_by(Contacts.sequence_number))
         return result.scalars().all()
+
+    async def get_contact_by_id(self, contact_id: int) -> Contacts:
+        """Получает контакт по ID."""
+        result = await self._sess.execute(select(Contacts).where(Contacts.id == contact_id))
+        return result.scalars().first()
+
+    async def update_contact(self, contact_id: int, **kwargs) -> Contacts:
+        """Обновляет данные контакта по ID."""
+        contact = await self.get_contact_by_id(contact_id)
+        if contact:
+            for key, value in kwargs.items():
+                if hasattr(contact, key):
+                    setattr(contact, key, value)
+            await self._sess.commit()
+            return contact
+        print(f"Контакт с id={contact_id} не найден")
+        return None
+
+    async def delete_contact(self, contact_id: int) -> bool:
+        """Удаляет контакт по ID."""
+        contact = await self.get_contact_by_id(contact_id)
+        if contact:
+            await self._sess.delete(contact)
+            await self._sess.commit()
+            return True
+        print(f"Контакт с id={contact_id} не найден")
+        return False
 
     # Методы для таблицы Settings
     async def set_setting(self, key: str, value: str, name: str = None, description: str = None) -> Settings:
@@ -412,7 +554,34 @@ class DBApi(BaseDBApi):
         result = await self._sess.execute(select(Settings).where(Settings.key == key))
         return result.scalars().first()
 
+    async def get_setting_by_id(self, setting_id: int) -> Settings:
+        """Получает настройку по ID."""
+        result = await self._sess.execute(select(Settings).where(Settings.id == setting_id))
+        return result.scalars().first()
+
     async def get_all_settings(self) -> list[Settings]:
         """Получает все настройки."""
         result = await self._sess.execute(select(Settings))
         return result.scalars().all()
+
+    async def update_setting(self, setting_id: int, **kwargs) -> Settings:
+        """Обновляет данные настройки по ID."""
+        setting = await self.get_setting_by_id(setting_id)
+        if setting:
+            for key, value in kwargs.items():
+                if hasattr(setting, key):
+                    setattr(setting, key, value)
+            await self._sess.commit()
+            return setting
+        print(f"Настройка с id={setting_id} не найдена")
+        return None
+
+    async def delete_setting(self, setting_id: int) -> bool:
+        """Удаляет настройку по ID."""
+        setting = await self.get_setting_by_id(setting_id)
+        if setting:
+            await self._sess.delete(setting)
+            await self._sess.commit()
+            return True
+        print(f"Настройка с id={setting_id} не найдена")
+        return False
