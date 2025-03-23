@@ -94,11 +94,11 @@ async def create_car(car: CarCreate, is_admin: bool = Depends(admin_auth)):
             raise HTTPException(status_code=400, detail="Ошибка при создании автомобиля")
         return car_data
 
-# Получение всех ID автомобилей
-@router.get("/ids", response_model=List[int])
-async def get_all_car_ids(is_admin: bool = Depends(admin_auth)):
+# Получение всех автомобилей
+@router.get("/", response_model=List[CarResponse])
+async def get_all_cars(is_admin: bool = Depends(admin_auth)):
     async with DBApi() as db:
-        car_ids = await db.get_all_car_ids()
+        car_ids = await db.get_all_cars()
         return car_ids
 
 # Получение автомобиля по ID

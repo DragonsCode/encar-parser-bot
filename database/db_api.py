@@ -33,6 +33,11 @@ class DBApi(BaseDBApi):
         """Получает все ID автомобилей."""
         result = await self._sess.execute(select(Car.id))  # Предполагается, что модель называется Car
         return [row[0] for row in result.fetchall()]
+    
+    async def get_all_cars(self):
+        """Получает все автомобили."""
+        result = await self._sess.execute(select(Car))
+        return result.scalars().all()
 
     async def get_car_by_id(self, car_id: int) -> Car:
         """Получает автомобиль по ID."""

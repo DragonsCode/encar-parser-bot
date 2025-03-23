@@ -28,7 +28,6 @@ async def get_admin_token(auth: str = Header(...), login: str = Header(...)):
     async with DBApi() as db:
         setting = await db.get_setting_by_key("admin_token")
         db_login = await db.get_setting_by_key("admin_login")
-        print(setting.value, db_login.value)
         if not setting or not setting.value or not login or not db_login.value:
             raise HTTPException(status_code=500, detail="Данные админа не настроены")
         if auth != setting.value or login != db_login.value:
