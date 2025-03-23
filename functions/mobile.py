@@ -388,15 +388,15 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                     car['engine_type_id'] = None
                 
                 # Работа с drive_type (поиск по name)
-                drive_type_original = car.get('drive_type')
-                if drive_type_original:
-                    drive_type_translated = await translate_text(drive_type_original)
-                    drv_type = await db.get_drive_type_by_name(drive_type_original)
-                    if not drv_type:
-                        drv_type = await db.create_drive_type(name=drive_type_original, translated=drive_type_translated)
-                    car['drive_type_id'] = drv_type.id
-                else:
-                    car['drive_type_id'] = None
+                # drive_type_original = car.get('drive_type')
+                # if drive_type_original:
+                #     drive_type_translated = await translate_text(drive_type_original)
+                #     drv_type = await db.get_drive_type_by_name(drive_type_original)
+                #     if not drv_type:
+                #         drv_type = await db.create_drive_type(name=drive_type_original, translated=drive_type_translated)
+                #     car['drive_type_id'] = drv_type.id
+                # else:
+                #     car['drive_type_id'] = None
                 
                 # Работа с car_color (поиск по name)
                 car_color_original = car.get('car_color')
@@ -420,7 +420,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                     'series_id': car['series_id'],
                     'equipment_id': car['equipment_id'],
                     'engine_type_id': car['engine_type_id'],
-                    'drive_type_id': car['drive_type_id'],
+                    # 'drive_type_id': car['drive_type_id'],
                     'car_color_id': car['car_color_id'],
                     'mileage': car.get('mileage'),
                     'price_won': car['price_won'],
