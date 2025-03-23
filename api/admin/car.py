@@ -60,12 +60,12 @@ class CarUpdate(BaseModel):
 # Модель для ответа
 class CarResponse(BaseModel):
     id: int
-    manufacture_id: int
-    model_id: int
-    series_id: int
-    equipment_id: int
-    engine_type_id: int
-    car_color_id: int
+    manufacture_id: Optional[int] = None
+    model_id: Optional[int] = None
+    series_id: Optional[int] = None
+    equipment_id: Optional[int] = None
+    engine_type_id: Optional[int] = None
+    car_color_id: Optional[int] = None
     mileage: Optional[int] = None
     price_won: Optional[int] = None
     price_rub: Optional[int] = None

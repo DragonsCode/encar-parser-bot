@@ -30,6 +30,9 @@ async def get_admin_token(auth: str = Header(...), login: str = Header(...)):
         db_login = await db.get_setting_by_key("admin_login")
         if not setting or not setting.value or not login or not db_login.value:
             raise HTTPException(status_code=500, detail="Данные админа не настроены")
+        print(setting.value, db_login.value)
+        print(auth, login)
+        print(setting.value == auth, db_login.value == login)
         if auth != setting.value or login != db_login.value:
             raise HTTPException(status_code=403, detail="Неверные данные админа")
     
