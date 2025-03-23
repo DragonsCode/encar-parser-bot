@@ -336,15 +336,27 @@ class DBApi(BaseDBApi):
         return result.scalars().all()
 
     # Методы для таблицы PayHistory
-    async def create_pay_history(self, user_id: int, tariff_id: int, price: float, successfully: bool) -> PayHistory:
+    async def create_pay_history(self, user_id: int, tariff_id: int, price: float, successfully: bool, **kwargs) -> PayHistory:
         """Создает запись в истории платежей."""
         pay_history = PayHistory(user_id=user_id, tariff_id=tariff_id, price=price, successfully=successfully)
         self._sess.add(pay_history)
         await self._sess.commit()
         return pay_history
     
-    async def edit_payhistory(self, id: int, successfully: bool = None):
+    async def edit_payhistory(self, id: int, invoice_id: int = None, successfully: bool = None):
         pay = await self._sess.execute(select(PayHistory).where(PayHistory.id == id))
+        pay_obj = pay.scalars().first()
+        if pay_obj:
+            if successfully is not None:
+                pay_obj.successfully = successfully
+            if invoice_id is not None:
+                pay_obj.intellect_invoice_id = invoice_id
+            await self._sess.commit()
+            return pay_obj
+        return None
+    
+    async def update_payhistory_by_invoice(self, invoice_id: int, successfully: bool = None):
+        pay = await self._sess.execute(select(PayHistory).where(PayHistory.intellect_invoice_id == invoice_id))
         pay_obj = pay.scalars().first()
         if pay_obj:
             if successfully is not None:
@@ -357,6 +369,14 @@ class DBApi(BaseDBApi):
         """Получает историю платежей пользователя."""
         result = await self._sess.execute(select(PayHistory).where(PayHistory.user_id == user_id))
         return result.scalars().all()
+    
+    async def get_last_payhistory_by_user(self, user_id: int) -> PayHistory:
+        result = await self._sess.execute(select(PayHistory).where(PayHistory.user_id == user_id).order_by(PayHistory.id.desc()))
+        return result.scalars().first()
+    
+    async def get_payhistory_by_invoice(self, invoice_id: int) -> PayHistory:
+        result = await self._sess.execute(select(PayHistory).where(PayHistory.intellect_invoice_id == invoice_id))
+        return result.scalars().first()
 
     # Методы для таблицы Contacts
     async def create_contact(self, title: str, url: str, sequence_number: int) -> Contacts:

@@ -193,15 +193,15 @@ async def parse_car_details(url: str, page):
     engine_type_elem = soup.find('dd', text=re.compile(r'가솔린|디젤|전기|하이브리드'))
     engine_type = engine_type_elem.text.strip() if engine_type_elem else None
     
-    drive_type_dt = soup.find('dt', text='구동방식')
-    drive_type = None
-    print(f"Найден drive_type_dt: {drive_type_dt}")
-    if drive_type_dt:
-        drive_type_elem = drive_type_dt.find_next_sibling('dd')
-        print(f"Найден drive_type_elem: {drive_type_elem}")
-        if drive_type_elem:
-            drive_type = drive_type_elem.text.strip()
-            print(f"Извлечён drive_type: {drive_type}")
+    # drive_type_dt = soup.find('dt', text='구동방식')
+    # drive_type = None
+    # print(f"Найден drive_type_dt: {drive_type_dt}")
+    # if drive_type_dt:
+    #     drive_type_elem = drive_type_dt.find_next_sibling('dd')
+    #     print(f"Найден drive_type_elem: {drive_type_elem}")
+    #     if drive_type_elem:
+    #         drive_type = drive_type_elem.text.strip()
+    #         print(f"Извлечён drive_type: {drive_type}")
     
     meta_desc = soup.find('meta', attrs={'name': 'description'})
     car_color = None
@@ -210,12 +210,12 @@ async def parse_car_details(url: str, page):
         if match:
             car_color = match.group(1)
     
-    date_elem = soup.find('dd', text=re.compile(r'\d{2}/\d{2}식'))
-    date_release = None
-    if date_elem:
-        date_str = date_elem.text.split('식')[0].strip()
-        year, month = map(int, date_str.split('/'))
-        date_release = datetime(2000 + year, month, 1)
+    # date_elem = soup.find('dd', text=re.compile(r'\d{2}/\d{2}식'))
+    # date_release = None
+    # if date_elem:
+    #     date_str = date_elem.text.split('식')[0].strip()
+    #     year, month = map(int, date_str.split('/'))
+    #     date_release = datetime(2000 + year, month, 1)
     
     equipment_list = soup.find('ul', class_='DetailOption_list_option__kTYgR')
     equipment = []
@@ -226,9 +226,9 @@ async def parse_car_details(url: str, page):
     return {
         'mileage': mileage,
         'engine_type': engine_type,
-        'drive_type': drive_type,
+        # 'drive_type': drive_type,
         'car_color': car_color,
-        'date_release': date_release,
+        # 'date_release': date_release,
         'equipment': ', '.join(equipment) if equipment else None
     }
 

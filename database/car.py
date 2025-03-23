@@ -12,12 +12,12 @@ class Car(SqlAlchemyBase):
     series_id = Column(BigInteger, ForeignKey("series.id"))
     equipment_id = Column(BigInteger, ForeignKey("equipment.id"))
     engine_type_id = Column(BigInteger, ForeignKey("engine_type.id"))
-    drive_type_id = Column(BigInteger, ForeignKey("drive_type.id"))
+    # drive_type_id = Column(BigInteger, ForeignKey("drive_type.id"))
     car_color_id = Column(BigInteger, ForeignKey("car_color.id"))
     mileage = Column(Integer, default=None)
     price_won = Column(Integer, default=None)
     price_rub = Column(Integer, default=None)
-    date_release = Column(DateTime, default=None)
+    # date_release = Column(DateTime, default=None)
     publication_dttm = Column(DateTime, default=None)
     check_dttm = Column(DateTime, default=None)
     change_ownership = Column(Integer, default=None)
@@ -42,12 +42,12 @@ class Car(SqlAlchemyBase):
             f"series_id={self.series_id}, "
             f"equipment_id={self.equipment_id}, "
             f"engine_type_id={self.engine_type_id}, "
-            f"drive_type_id={self.drive_type_id}, "
+            # f"drive_type_id={self.drive_type_id}, "
             f"car_color_id={self.car_color_id}, "
             f"mileage={self.mileage}, "
             f"price_won={self.price_won}, "
             f"price_rub={self.price_rub}, "
-            f"date_release={self.date_release}, "
+            # f"date_release={self.date_release}, "
             f"publication_dttm={self.publication_dttm}, "
             f"check_dttm={self.check_dttm}, "
             f"change_ownership={self.change_ownership}, "

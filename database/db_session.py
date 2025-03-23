@@ -13,7 +13,8 @@ async def global_init(user, password, host, port, dbname, delete_db=False):
     if __factory:
         return
     # postgresql+asyncpg для postgres и mysql+aiomysql для mysql
-    conn_str = f'postgresql+asyncpg://{user}:{password}@{host}:{port}/{dbname}'
+    db_type = "postgresql+asyncpg" if host != "localhost" else "mysql+aiomysql"
+    conn_str = f'{db_type}://{user}:{password}@{host}:{port}/{dbname}'
     print(f"Подключение к базе данных по адресу {conn_str}")
 
     engine = create_async_engine(conn_str, pool_pre_ping=True)

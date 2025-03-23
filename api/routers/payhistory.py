@@ -17,9 +17,10 @@ class PaymentCreate(BaseModel):
     description: str = "Оплата подписки"
 
 @router.post("/callback")
-async def payment_callback(request: Request, db: DBApi = Depends(DBApi)):
+async def payment_callback(request: Request):
     """Обработка уведомлений от IntellectMoney."""
     data = await request.json()
+    print("CALLBACK DATA: ", data)
     invoice_id = data.get("invoiceId")
     payment_step = data.get("paymentStep")
 
@@ -39,7 +40,7 @@ async def payment_callback(request: Request, db: DBApi = Depends(DBApi)):
     return {"message": "Callback обработан"}
 
 @router.post("/create")
-async def create_payment(payment: PaymentCreate, db: DBApi = Depends(DBApi)):
+async def create_payment(payment: PaymentCreate):
     """Создание платежа через IntellectMoney."""
     # Создаём запись в истории платежей
     pay_data = PayHistoryCreate(
@@ -55,8 +56,8 @@ async def create_payment(payment: PaymentCreate, db: DBApi = Depends(DBApi)):
             raise HTTPException(status_code=400, detail="Ошибка создания записи оплаты")
         pay_record = await db.get_last_payhistory_by_user(payment.user_id)  # Предполагается, что такой метод есть
 
-    # Получаем ключи IntellectMoney
-    keys = await get_intellectmoney_keys(db)
+        # Получаем ключи IntellectMoney
+        keys = await get_intellectmoney_keys(db)
 
     # Параметры для IntellectMoney
     order_id = f"order_{pay_record.id}"
@@ -65,13 +66,13 @@ async def create_payment(payment: PaymentCreate, db: DBApi = Depends(DBApi)):
         "orderId": order_id,
         "serviceName": payment.description,
         "recipientAmount": f"{payment.price:.2f}",
-        "recipientCurrency": "RUB",
+        "recipientCurrency": "TST",
         "userName": "",
         "email": payment.email,
-        "successUrl": "https://your-api.com/payhistory/success",
-        "failUrl": "https://your-api.com/payhistory/fail",
-        "backUrl": "https://your-site.com/",
-        "resultUrl": "https://your-api.com/payhistory/callback",
+        "successUrl": "http://localhost:8000/payhistory/success",
+        "failUrl": "http://localhost:8000/payhistory/fail",
+        "backUrl": "https://a-b-d.ru/",
+        "resultUrl": "http://localhost:8000/payhistory/callback",
         "expireDate": "",
         "holdMode": "",
         "preference": ""
@@ -103,8 +104,8 @@ async def create_payment(payment: PaymentCreate, db: DBApi = Depends(DBApi)):
         if data["OperationState"]["Code"] == 0 and data["Result"]["State"]["Code"] == 0:
             invoice_id = data["Result"]["InvoiceId"]
             async with DBApi() as db:
-                await db.update_payhistory(pay_record.id, intellect_invoice_id=invoice_id)
-            payment_url = f"https://pay.intellectmoney.ru/?invoice={invoice_id}"
+                await db.edit_payhistory(pay_record.id, intellect_invoice_id=invoice_id)
+            payment_url = f"https://merchant.intellectmoney.ru/v2/ru/process/{invoice_id}/acquiring"
             return {
                 "message": "Счёт успешно создан",
                 "invoice_id": invoice_id,
@@ -115,24 +116,35 @@ async def create_payment(payment: PaymentCreate, db: DBApi = Depends(DBApi)):
 
 # Временные эндпоинты для обработки success и fail
 @router.get("/success")
-async def payment_success(invoice_id: int, db: DBApi = Depends(DBApi)):
+async def payment_success(request: Request):
     """Обработка успешного платежа с перенаправлением на фронтенд."""
-    async with DBApi() as db:
-        await db.update_payhistory_by_invoice(invoice_id, successfully=True)
+    print("SUCCESS")
+    print("QUERY PARAMS: ", request.query_params)
+    print("PATH PARAMS: ", request.path_params)
+    data = await request.json()
+    print ("DATA: ", data)
+    # async with DBApi() as db:
+        # await db.update_payhistory_by_invoice(invoice_id, successfully=True)
         # Здесь можно обновить подписку
-    return RedirectResponse(url="https://your-site.com/success")
+    return RedirectResponse(url="https://a-b-d.ru/success")
 
 @router.get("/fail")
-async def payment_fail(invoice_id: int, db: DBApi = Depends(DBApi)):
+async def payment_fail(request: Request):
     """Обработка неуспешного платежа с перенаправлением на фронтенд."""
+    print("SUCCESS")
+    print("QUERY PARAMS: ", request.query_params)
+    print("PATH PARAMS: ", request.path_params)
+    data = await request.json()
+    print ("DATA: ", data)
     # Можно логировать неудачу, но не обновляем статус
-    return RedirectResponse(url="https://your-site.com/fail")
+    return RedirectResponse(url="https://a-b-d.ru/fail")
 
 @router.get("/check/{invoice_id}")
-async def check_payment_status(invoice_id: int, db: DBApi = Depends(DBApi)):
+async def check_payment_status(invoice_id: int):
     """Проверка статуса платежа через IntellectMoney."""
-    # Получаем ключи IntellectMoney
-    keys = await get_intellectmoney_keys(db)
+    async with DBApi() as db:
+        # Получаем ключи IntellectMoney
+        keys = await get_intellectmoney_keys(db)
 
     # Параметры для IntellectMoney
     params = {
