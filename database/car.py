@@ -17,7 +17,7 @@ class Car(SqlAlchemyBase):
     mileage = Column(Integer, default=None)
     price_won = Column(Integer, default=None)
     price_rub = Column(Integer, default=None)
-    # date_release = Column(DateTime, default=None)
+    date_release = Column(DateTime, default=None)
     publication_dttm = Column(DateTime, default=None)
     check_dttm = Column(DateTime, default=None)
     change_ownership = Column(Integer, default=None)
@@ -47,7 +47,7 @@ class Car(SqlAlchemyBase):
             f"mileage={self.mileage}, "
             f"price_won={self.price_won}, "
             f"price_rub={self.price_rub}, "
-            # f"date_release={self.date_release}, "
+            f"date_release={self.date_release}, "
             f"publication_dttm={self.publication_dttm}, "
             f"check_dttm={self.check_dttm}, "
             f"change_ownership={self.change_ownership}, "

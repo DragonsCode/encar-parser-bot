@@ -158,6 +158,23 @@ async def parse_cars(car_type: str, max_pages: int = None):
                     region = info_elems[3].text.strip() if len(info_elems) > 3 else None
                     price_elem = item.find('span', class_='ItemBigImage_num__Fu15_')
                     price = int(price_elem.text.strip().replace(',', '')) * 10_000 if price_elem else None
+                    # Ищем блок с информацией
+                    info_block = item.find('ul', class_='ItemBigImage_info__YMI5y')
+                    date_release = None
+
+                    if info_block:
+                        # Берём первый <li> — он содержит дату выпуска
+                        date_li = info_block.find('li')
+                        if date_li:
+                            date_text = date_li.text.strip()  # Например, "19/04식(20년형)"
+                            # Извлекаем часть до "식", например, "19/04"
+                            match = re.match(r'(\d{2}/\d{2})식', date_text)
+                            if match:
+                                date_str = match.group(1)  # "19/04"
+                                year, month = map(int, date_str.split('/'))
+                                # Преобразуем в datetime (год 19 → 2019)
+                                full_year = 2000 + year
+                                date_release = datetime(full_year, month, 1)
                     
                     page_cars.append({
                         "id": carid,
@@ -167,6 +184,7 @@ async def parse_cars(car_type: str, max_pages: int = None):
                         "fuel": fuel,
                         "region": region,
                         "price_won": price,
+                        "date_release": date_release,
                         "url": full_link
                     })
                 except (AttributeError, IndexError, ValueError) as e:
