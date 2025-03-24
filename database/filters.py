@@ -13,7 +13,7 @@ class Filters(SqlAlchemyBase):
     series_id = Column(BigInteger, ForeignKey("series.id"), default=None)
     equipment_id = Column(BigInteger, ForeignKey("equipment.id"), default=None)
     engine_type_id = Column(BigInteger, ForeignKey("engine_type.id"), default=None)
-    drive_type_id = Column(BigInteger, ForeignKey("drive_type.id"), default=None)
+    # drive_type_id = Column(BigInteger, ForeignKey("drive_type.id"), default=None)
     car_color_id = Column(BigInteger, ForeignKey("car_color.id"), default=None)
     mileage_from = Column(Integer, default=None)
     mileage_defore = Column(Integer, default=None)
@@ -33,7 +33,7 @@ class Filters(SqlAlchemyBase):
             f"series_id={self.series_id}, "
             f"equipment_id={self.equipment_id}, "
             f"engine_type_id={self.engine_type_id}, "
-            f"drive_type_id={self.drive_type_id}, "
+            # f"drive_type_id={self.drive_type_id}, "
             f"car_color_id={self.car_color_id}, "
             f"mileage_from={self.mileage_from}, "
             f"mileage_defore={self.mileage_defore}, "

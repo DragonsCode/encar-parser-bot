@@ -15,7 +15,7 @@ class FilterCreate(BaseModel):
     series_id: Optional[int] = None
     equipment_id: Optional[int] = None
     engine_type_id: Optional[int] = None
-    drive_type_id: Optional[int] = None
+    # drive_type_id: Optional[int] = None
     car_color_id: Optional[int] = None
     mileage_from: Optional[int] = None
     mileage_defore: Optional[int] = None
@@ -32,7 +32,7 @@ class FilterUpdate(BaseModel):
     series_id: Optional[int] = None
     equipment_id: Optional[int] = None
     engine_type_id: Optional[int] = None
-    drive_type_id: Optional[int] = None
+    # drive_type_id: Optional[int] = None
     car_color_id: Optional[int] = None
     mileage_from: Optional[int] = None
     mileage_defore: Optional[int] = None
@@ -50,7 +50,7 @@ class FilterResponse(BaseModel):
     series_id: Optional[int] = None
     equipment_id: Optional[int] = None
     engine_type_id: Optional[int] = None
-    drive_type_id: Optional[int] = None
+    # drive_type_id: Optional[int] = None
     car_color_id: Optional[int] = None
     mileage_from: Optional[int] = None
     mileage_defore: Optional[int] = None
@@ -72,7 +72,7 @@ async def create_filter(filter_data: FilterCreate, is_admin: bool = Depends(admi
             series_id=filter_data.series_id,
             equipment_id=filter_data.equipment_id,
             engine_type_id=filter_data.engine_type_id,
-            drive_type_id=filter_data.drive_type_id,
+            # drive_type_id=filter_data.drive_type_id,
             car_color_id=filter_data.car_color_id,
             mileage_from=filter_data.mileage_from,
             mileage_defore=filter_data.mileage_defore,
