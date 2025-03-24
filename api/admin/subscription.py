@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from api.dependencies import admin_auth
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 from database import DBApi
+from fastapi_pagination import Page  # Импортируем Page для пагинации
+from fastapi_pagination.ext.sqlalchemy import paginate  # Импортируем paginate для SQLAlchemy
 
 router = APIRouter(prefix="/admin/subscription", tags=["Admin - Subscription"])
 
@@ -41,28 +43,30 @@ async def create_subscription(subscription: SubscriptionCreate, is_admin: bool =
             raise HTTPException(status_code=400, detail="Ошибка при создании подписки")
         return subscription_data
 
-# Получение всех подписок
-@router.get("/", response_model=List[SubscriptionResponse])
+# Получение всех подписок с пагинацией
+@router.get("/", response_model=Page[SubscriptionResponse])
 async def get_all_subscriptions(is_admin: bool = Depends(admin_auth)):
     async with DBApi() as db:
-        subscriptions = await db.get_all_subscriptions()
-        return subscriptions
+        # Используем новый метод get_all_subscriptions_query для получения SQLAlchemy-запроса
+        query = await db.get_all_subscriptions_query()
+        return await paginate(db._sess, query)
 
 # Получение подписки по пользователю
-@router.get("/user/{user_id}", response_model=SubscriptionResponse)
+@router.get("/user/{user_id}", response_model=Page[SubscriptionResponse])
 async def get_subscription_by_user(user_id: int, is_admin: bool = Depends(admin_auth)):
     async with DBApi() as db:
-        subscription = await db.get_subscription_by_user(user_id)
+        subscription = await db.get_subscription_by_user_query(user_id)
         if not subscription:
             raise HTTPException(status_code=404, detail="Подписка не найдена")
-        return subscription
+        return paginate(db._sess, subscription)
 
-# Получение подписок, истекающих в заданном временном интервале
-@router.get("/expiring", response_model=List[SubscriptionResponse])
+# Получение подписок, истекающих в заданном временном интервале, с пагинацией
+@router.get("/expiring", response_model=Page[SubscriptionResponse])
 async def get_expiring_subscriptions(start_time: datetime, end_time: datetime, is_admin: bool = Depends(admin_auth)):
     async with DBApi() as db:
-        subscriptions = await db.get_expiring_subscriptions(start_time, end_time)
-        return subscriptions
+        # Используем новый метод get_expiring_subscriptions_query для получения SQLAlchemy-запроса
+        query = await db.get_expiring_subscriptions_query(start_time, end_time)
+        return await paginate(db._sess, query)
 
 # Получение подписки по ID
 @router.get("/{subscription_id}", response_model=SubscriptionResponse)

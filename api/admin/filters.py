@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from api.dependencies import admin_auth
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 from database import DBApi
+from fastapi_pagination import Page  # Импортируем Page для пагинации
+from fastapi_pagination.ext.sqlalchemy import paginate  # Импортируем paginate для SQLAlchemy
 
 router = APIRouter(prefix="/admin/filters", tags=["Admin - Filters"])
 
@@ -85,19 +87,21 @@ async def create_filter(filter_data: FilterCreate, is_admin: bool = Depends(admi
             raise HTTPException(status_code=400, detail="Ошибка при создании фильтра")
         return filter_obj
 
-# Получение всех фильтров
-@router.get("/", response_model=List[FilterResponse])
+# Получение всех фильтров с пагинацией
+@router.get("/", response_model=Page[FilterResponse])
 async def get_all_filters(is_admin: bool = Depends(admin_auth)):
     async with DBApi() as db:
-        filters = await db.get_all_filters()
-        return filters
+        # Используем новый метод get_all_filters_query для получения SQLAlchemy-запроса
+        query = await db.get_all_filters_query()
+        return await paginate(db._sess, query)
 
-# Получение фильтров по пользователю
-@router.get("/user/{user_id}", response_model=List[FilterResponse])
+# Получение фильтров по пользователю с пагинацией
+@router.get("/user/{user_id}", response_model=Page[FilterResponse])
 async def get_filters_by_user(user_id: int, is_admin: bool = Depends(admin_auth)):
     async with DBApi() as db:
-        filters = await db.get_filters_by_user(user_id)
-        return filters
+        # Используем новый метод get_filters_by_user_query для получения SQLAlchemy-запроса
+        query = await db.get_filters_by_user_query(user_id)
+        return await paginate(db._sess, query)
 
 # Получение количества фильтров пользователя
 @router.get("/count/{user_id}", response_model=int)

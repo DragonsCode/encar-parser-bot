@@ -34,6 +34,10 @@ class DBApi(BaseDBApi):
         result = await self._sess.execute(select(Car.id))  # Предполагается, что модель называется Car
         return [row[0] for row in result.fetchall()]
     
+    async def get_all_cars_query(self):
+        # Возвращаем SQLAlchemy-запрос вместо списка
+        return select(Car)
+    
     async def get_all_cars(self):
         """Получает все автомобили."""
         result = await self._sess.execute(select(Car))
@@ -247,6 +251,9 @@ class DBApi(BaseDBApi):
         """Получает всех пользователей."""
         result = await self._sess.execute(select(Users))
         return result.scalars().all()
+    
+    async def get_all_users_query(self):
+        return select(Users)
 
     async def update_user(self, user_id: int, **kwargs) -> Users:
         """Обновляет данные пользователя по ID."""
@@ -288,8 +295,11 @@ class DBApi(BaseDBApi):
         return result.scalars().all()
     
     async def get_filters_count_by_user(self, user_id: int):
-        result = await self._sess.execute(select(func.count(Filters.id)).where(Filters.user_id == user_id))
+        result = await self._sess.execute(select(func.count(Filters.id)).where(Filters.user_id == user_id).order_by(Filters.create_dttm.asc()))
         return result.scalar()
+    
+    async def get_filters_by_user_query(self, user_id: int):
+        return select(Filters).where(Filters.user_id == user_id).order_by(Filters.create_dttm.asc())
     
     async def delete_filter(self, filter_id: int):
         filter_obj = await self.get_filter_by_id(filter_id)
@@ -303,6 +313,9 @@ class DBApi(BaseDBApi):
         """Получает все фильтры."""
         result = await self._sess.execute(select(Filters))
         return result.scalars().all()
+    
+    async def get_all_filters_query(self):
+        return select(Filters)
 
     async def update_filter(self, filter_id: int, **kwargs) -> Filters:
         """Обновляет данные фильтра по ID."""
@@ -328,11 +341,18 @@ class DBApi(BaseDBApi):
         """Получает все подписки."""
         result = await self._sess.execute(select(Subscription))
         return result.scalars().all()
+    
+    async def get_all_subscriptions_query(self):
+        return select(Subscription)
 
     async def get_subscription_by_user(self, user_id: int) -> Subscription:
-        """Получает подписку пользователя."""
+        """Получает подписки пользователя."""
         result = await self._sess.execute(select(Subscription).where(Subscription.user_id == user_id))
-        return result.scalars().first()
+        return result.scalars().all()
+    
+    async def get_subscription_by_user_query(self, user_id: int) -> Subscription:
+        """Получает подписки пользователя."""
+        return select(Subscription).where(Subscription.user_id == user_id)
 
     async def get_expiring_subscriptions(self, start_time: datetime, end_time: datetime) -> list[Subscription]:
         """Получает подписки, истекающие в заданном временном интервале."""
@@ -341,10 +361,26 @@ class DBApi(BaseDBApi):
         )
         result = await self._sess.execute(query)
         return result.scalars().all()
+    
+    async def get_expiring_subscriptions_query(self, start_time: datetime, end_time: datetime):
+        return select(Subscription).where(
+            Subscription.subscription_end.between(start_time, end_time)
+        )
 
     async def get_subscription_by_id(self, sub_id: int) -> Subscription:
         """Получает подписку по ID."""
         result = await self._sess.execute(select(Subscription).where(Subscription.id == sub_id))
+        return result.scalars().first()
+    
+    async def get_active_subscription_by_user(self, user_id: int) -> Subscription | None:
+        """Получает последнюю активную подписку пользователя."""
+        now = datetime.now()
+        result = await self._sess.execute(
+            select(Subscription)
+            .where(Subscription.user_id == user_id, Subscription.subscription_end > now)
+            .order_by(Subscription.id.desc())  # Последняя по id (предполагаем, что id растёт с временем)
+            .limit(1)
+        )
         return result.scalars().first()
 
     async def update_subscription(self, subscription_id: int, **kwargs) -> Subscription:
@@ -397,6 +433,9 @@ class DBApi(BaseDBApi):
         """Получает все тарифы."""
         result = await self._sess.execute(select(Tariffs))
         return result.scalars().all()
+    
+    async def get_all_tariffs_query(self):
+        return select(Tariffs)
 
     async def update_tariff(self, tariff_id: int, **kwargs) -> Tariffs:
         """Обновляет данные тарифа по ID."""
@@ -432,6 +471,9 @@ class DBApi(BaseDBApi):
         """Получает все записи в истории платежей."""
         result = await self._sess.execute(select(PayHistory))
         return result.scalars().all()
+    
+    async def get_all_pay_histories_query(self):
+        return select(PayHistory)
 
     async def get_pay_history_by_id(self, pay_history_id: int) -> PayHistory:
         """Получает запись в истории платежей по ID."""
@@ -442,6 +484,9 @@ class DBApi(BaseDBApi):
         """Получает историю платежей пользователя."""
         result = await self._sess.execute(select(PayHistory).where(PayHistory.user_id == user_id))
         return result.scalars().all()
+    
+    async def get_pay_history_by_user_query(self, user_id: int):
+        return select(PayHistory).where(PayHistory.user_id == user_id)
 
     async def get_last_payhistory_by_user(self, user_id: int) -> PayHistory:
         """Получает последнюю запись в истории платежей пользователя."""
@@ -510,6 +555,9 @@ class DBApi(BaseDBApi):
         """Получает все контакты, отсортированные по sequence_number."""
         result = await self._sess.execute(select(Contacts).order_by(Contacts.sequence_number))
         return result.scalars().all()
+    
+    async def get_all_contacts_query(self):
+        return select(Contacts)
 
     async def get_contact_by_id(self, contact_id: int) -> Contacts:
         """Получает контакт по ID."""
@@ -568,6 +616,9 @@ class DBApi(BaseDBApi):
         """Получает все настройки."""
         result = await self._sess.execute(select(Settings))
         return result.scalars().all()
+    
+    async def get_all_settings_query(self):
+        return select(Settings)
 
     async def update_setting(self, setting_id: int, **kwargs) -> Settings:
         """Обновляет данные настройки по ID."""

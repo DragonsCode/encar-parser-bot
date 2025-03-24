@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from api.dependencies import admin_auth
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 from database import DBApi
+from fastapi_pagination import Page  # Импортируем Page для пагинации
+from fastapi_pagination.ext.sqlalchemy import paginate  # Импортируем paginate для SQLAlchemy
 
 router = APIRouter(prefix="/admin/payhistory", tags=["Admin - PayHistory"])
 
@@ -49,19 +51,21 @@ async def create_pay_history(pay_history: PayHistoryCreate, is_admin: bool = Dep
             raise HTTPException(status_code=400, detail="Ошибка при создании записи в истории платежей")
         return pay_history_data
 
-# Получение всех записей в истории платежей
-@router.get("/", response_model=List[PayHistoryResponse])
+# Получение всех записей в истории платежей с пагинацией
+@router.get("/", response_model=Page[PayHistoryResponse])
 async def get_all_pay_histories(is_admin: bool = Depends(admin_auth)):
     async with DBApi() as db:
-        pay_histories = await db.get_all_pay_histories()
-        return pay_histories
+        # Используем новый метод get_all_pay_histories_query для получения SQLAlchemy-запроса
+        query = await db.get_all_pay_histories_query()
+        return await paginate(db._sess, query)
 
-# Получение истории платежей по пользователю
-@router.get("/user/{user_id}", response_model=List[PayHistoryResponse])
+# Получение истории платежей по пользователю с пагинацией
+@router.get("/user/{user_id}", response_model=Page[PayHistoryResponse])
 async def get_pay_history_by_user(user_id: int, is_admin: bool = Depends(admin_auth)):
     async with DBApi() as db:
-        pay_histories = await db.get_pay_history_by_user(user_id)
-        return pay_histories
+        # Используем новый метод get_pay_history_by_user_query для получения SQLAlchemy-запроса
+        query = await db.get_pay_history_by_user_query(user_id)
+        return await paginate(db._sess, query)
 
 # Получение последней записи в истории платежей пользователя
 @router.get("/last/{user_id}", response_model=PayHistoryResponse)

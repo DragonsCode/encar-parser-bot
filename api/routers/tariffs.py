@@ -12,5 +12,5 @@ async def get_tariffs(user_id: int = Depends(telegram_auth)):
     Depends on telegram_auth
     """
     async with DBApi() as db:
-        tariffs = await db.get_all_tariffs()  # Предполагается метод
+        tariffs = await db.get_all_tariffs()
         return tariffs

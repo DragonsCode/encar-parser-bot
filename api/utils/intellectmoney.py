@@ -1,6 +1,8 @@
 import hashlib
 from typing import Dict
 from database import DBApi
+from urllib.parse import unquote, unquote_plus
+import unicodedata
 
 # Ключи для обращения к настройкам в базе данных
 INTELLECTMONEY_KEYS = {
@@ -30,14 +32,83 @@ async def get_intellectmoney_keys(db: DBApi) -> Dict[str, str]:
         "eshop_id": await get_intellectmoney_setting("eshop_id", db)
     }
 
+def generate_callback_hash(params: dict, secret_key: str) -> str:
+    fields = [
+        params.get("eshopId", ""),
+        params.get("orderId", ""),
+        unquote_plus(params.get("serviceName", ""), encoding="windows-1251", errors="replace"),
+        params.get("eshopAccount", ""),
+        params.get("recipientAmount", ""),
+        params.get("recipientCurrency", ""),
+        params.get("paymentStatus", ""),
+        unquote_plus(params.get("userName", ""), encoding="windows-1251", errors="replace"),
+        unquote_plus(params.get("userEmail", ""), encoding="windows-1251", errors="replace"),
+        unquote_plus(params.get("paymentData", ""), encoding="windows-1251", errors="replace"),
+        secret_key
+    ]
+    # Normalize Unicode and create the hash string
+    # fields = [unicodedata.normalize("NFC", field) for field in fields]
+    hash_string = "::".join(fields)
+    print("Callback hash string:", hash_string)
+    try:
+        hash_bytes = hash_string.encode("windows-1251")
+    except UnicodeEncodeError as e:
+        print(f"Encoding error: {e}")
+        hash_string = hash_string.encode("windows-1251", errors="replace").decode("windows-1251")
+        hash_bytes = hash_string.encode("windows-1251")
+    hash_object = hashlib.md5(hash_bytes)
+    return hash_object.hexdigest()
+
 def generate_sign_hash(params: Dict[str, str], template: str, sign_secret_key: str) -> str:
     """Генерация хеша для заголовка Sign."""
-    params_with_secret = {**params, "signSecretKey": sign_secret_key}
-    sign_string = template.format(**params_with_secret)
-    return hashlib.sha256(sign_string.encode("utf-8")).hexdigest()
+    # Формируем строку, заменяя параметры в шаблоне
+    sign_string = template.format(
+        eshopId=params.get("eshopId", ""),
+        orderId=params.get("orderId", ""),
+        serviceName=params.get("serviceName", ""),
+        recipientAmount=params.get("recipientAmount", ""),
+        recipientCurrency=params.get("recipientCurrency", ""),
+        userName=params.get("userName", ""),
+        email=params.get("email", ""),
+        successUrl=params.get("successUrl", ""),
+        failUrl=params.get("failUrl", ""),
+        backUrl=params.get("backUrl", ""),
+        resultUrl=params.get("resultUrl", ""),
+        expireDate=params.get("expireDate", ""),
+        holdMode=params.get("holdMode", ""),
+        preference=params.get("preference", ""),
+        signSecretKey=sign_secret_key
+    )
+    print("Sign string:", sign_string)  # Для отладки
+    # Кодируем строку в UTF-8 и вычисляем SHA256
+    sign_bytes = sign_string.encode("utf-8")
+    hash_object = hashlib.sha256(sign_bytes)
+    sign_hash = hash_object.hexdigest()
+    return sign_hash
 
 def generate_param_hash(params: Dict[str, str], template: str, eshop_secret_key: str) -> str:
     """Генерация хеша для параметра hash."""
-    params_with_secret = {**params, "secretKey": eshop_secret_key}
-    hash_string = template.format(**params_with_secret)
-    return hashlib.md5(hash_string.encode("utf-8")).hexdigest()
+    # Формируем строку, заменяя параметры в шаблоне
+    hash_string = template.format(
+        eshopId=params.get("eshopId", ""),
+        orderId=params.get("orderId", ""),
+        serviceName=params.get("serviceName", ""),
+        recipientAmount=params.get("recipientAmount", ""),
+        recipientCurrency=params.get("recipientCurrency", ""),
+        userName=params.get("userName", ""),
+        email=params.get("email", ""),
+        successUrl=params.get("successUrl", ""),
+        failUrl=params.get("failUrl", ""),
+        backUrl=params.get("backUrl", ""),
+        resultUrl=params.get("resultUrl", ""),
+        expireDate=params.get("expireDate", ""),
+        holdMode=params.get("holdMode", ""),
+        preference=params.get("preference", ""),
+        secretKey=eshop_secret_key
+    )
+    print("Hash string:", hash_string)  # Для отладки
+    # Кодируем строку в UTF-8 и вычисляем SHA256
+    hash_bytes = hash_string.encode("utf-8")
+    hash_object = hashlib.md5(hash_bytes)
+    param_hash = hash_object.hexdigest()
+    return param_hash

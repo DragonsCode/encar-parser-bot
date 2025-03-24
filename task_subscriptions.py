@@ -8,6 +8,7 @@ from database.db_session import global_init
 from config import DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME
 from tgbot.keyboards.inline import get_web_app_keyboard
 
+
 async def get_bot():
     """Инициализирует Telegram-бота с токеном из базы данных."""
     async with DBApi() as db:
@@ -20,10 +21,9 @@ async def check_subscriptions():
     """Проверяет подписки и отправляет уведомления об истечении."""
     print("Проверка подписок на истечение...")
     now = datetime.now()
-    expiration_threshold = now + timedelta(hours=24)  # Порог истечения: следующие 24 часа
+    expiration_threshold = now + timedelta(hours=24)
     
     async with DBApi() as db:
-        # Используем новый метод для получения подписок
         expiring_subscriptions = await db.get_expiring_subscriptions(now, expiration_threshold)
         
         if not expiring_subscriptions:
@@ -52,29 +52,55 @@ async def check_subscriptions():
                 except Exception as e:
                     print(f"Ошибка отправки уведомления пользователю {sub.user_id}: {e}")
         finally:
-            await bot.session.close()  # Закрываем сессию бота
+            await bot.session.close()
     
     print("Проверка подписок завершена.")
 
+async def check_and_remove_filters():
+    """Проверяет подписки и удаляет лишние фильтры пользователей."""
+    print("Проверка фильтров пользователей...")
+    async with DBApi() as db:
+        users = await db.get_all_users()
+        for user in users:
+            user_id = user.id
+            active_sub = await db.get_active_subscription_by_user(user_id)
+            filters = await db.get_filters_by_user(user_id)
+            filters_count = len(filters)
+
+            if not active_sub:
+                for filter_obj in filters:
+                    await db.delete_filter(filter_obj.id)
+                print(f"Удалены все фильтры пользователя {user_id}")
+            else:
+                tariff = await db.get_tariff_by_id(active_sub.tariff_id)
+                if tariff:
+                    allowed_filters = tariff.filters_count
+                    if filters_count > allowed_filters:
+                        filters_to_delete = filters[:filters_count - allowed_filters]
+                        for filter_obj in filters_to_delete:
+                            await db.delete_filter(filter_obj.id)
+                        print(f"Удалены {len(filters_to_delete)} лишних фильтров пользователя {user_id}")
+                else:
+                    print(f"Тариф с id={active_sub.tariff_id} не найден для пользователя {user_id}")
+
+    print("Проверка фильтров завершена.")
 
 async def run_scheduler():
-    # Инициализация базы данных
     await global_init(
         user=DB_USER,
         password=DB_PASSWORD,
         host=DB_HOST,
         port=DB_PORT,
         dbname=DB_NAME,
-        delete_db=False  # Установите True, если нужно пересоздать таблицы
+        delete_db=False
     )
-    # await check_subscriptions()  # Вызовите функцию для проверки подписок
     scheduler = AsyncIOScheduler()
     scheduler.add_job(check_subscriptions, 'interval', hours=24)
+    scheduler.add_job(check_and_remove_filters, 'interval', days=1)
     scheduler.start()
 
-    # Держим событийный цикл активным
     try:
-        await asyncio.Event().wait()  # Бесконечное ожидание
+        await asyncio.Event().wait()
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()
         print("Планировщик остановлен")

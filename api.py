@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_pagination import add_pagination
 from api.dependencies import telegram_auth, admin_auth
 from api.routers import filters, subscriptions, tariffs, contacts, payhistory, references
 from api.admin import car, contacts as admin_contacts, filters as admin_filters, payhistory as admin_payhistory, settings, subscription, tariffs as admin_tariffs, users
@@ -32,6 +33,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Подключаем пагинацию
+add_pagination(app)
 
 # Подключаем роутеры
 app.include_router(filters.router)

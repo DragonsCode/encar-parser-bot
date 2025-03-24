@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from api.dependencies import admin_auth
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 from database import DBApi
+from fastapi_pagination import Page  # Импортируем Page для пагинации
+from fastapi_pagination.ext.sqlalchemy import paginate  # Импортируем paginate для SQLAlchemy
 
 router = APIRouter(prefix="/admin/settings", tags=["Admin - Settings"])
 
@@ -45,12 +47,13 @@ async def set_setting(setting: SettingCreate, is_admin: bool = Depends(admin_aut
             raise HTTPException(status_code=400, detail="Ошибка при создании/обновлении настройки")
         return setting_data
 
-# Получение всех настроек
-@router.get("/", response_model=List[SettingResponse])
+# Получение всех настроек с пагинацией
+@router.get("/", response_model=Page[SettingResponse])
 async def get_all_settings(is_admin: bool = Depends(admin_auth)):
     async with DBApi() as db:
-        settings = await db.get_all_settings()
-        return settings
+        # Используем новый метод get_all_settings_query для получения SQLAlchemy-запроса
+        query = await db.get_all_settings_query()
+        return await paginate(db._sess, query)
 
 # Получение настройки по ключу
 @router.get("/key/{key}", response_model=SettingResponse)

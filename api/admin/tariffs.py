@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from api.dependencies import admin_auth
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 from database import DBApi
+from fastapi_pagination import Page  # Импортируем Page для пагинации
+from fastapi_pagination.ext.sqlalchemy import paginate  # Импортируем paginate для SQLAlchemy
 
 router = APIRouter(prefix="/admin/tariffs", tags=["Admin - Tariffs"])
 
@@ -49,12 +51,13 @@ async def create_tariff(tariff: TariffCreate, is_admin: bool = Depends(admin_aut
             raise HTTPException(status_code=400, detail="Ошибка при создании тарифа")
         return tariff_data
 
-# Получение всех тарифов
-@router.get("/", response_model=List[TariffResponse])
+# Получение всех тарифов с пагинацией
+@router.get("/", response_model=Page[TariffResponse])
 async def get_all_tariffs(is_admin: bool = Depends(admin_auth)):
     async with DBApi() as db:
-        tariffs = await db.get_all_tariffs()
-        return tariffs
+        # Используем новый метод get_all_tariffs_query для получения SQLAlchemy-запроса
+        query = await db.get_all_tariffs_query()
+        return await paginate(db._sess, query)
 
 # Получение тарифа по ID
 @router.get("/{tariff_id}", response_model=TariffResponse)

@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from api.dependencies import admin_auth
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 from database import DBApi
+from fastapi_pagination import Page  # Импортируем Page для пагинации
+from fastapi_pagination.ext.sqlalchemy import paginate  # Импортируем paginate для SQLAlchemy
 
 router = APIRouter(prefix="/admin/contacts", tags=["Admin - Contacts"])
 
@@ -41,12 +43,13 @@ async def create_contact(contact: ContactCreate, is_admin: bool = Depends(admin_
             raise HTTPException(status_code=400, detail="Ошибка при создании контакта")
         return contact_data
 
-# Получение всех контактов
-@router.get("/", response_model=List[ContactResponse])
+# Получение всех контактов с пагинацией
+@router.get("/", response_model=Page[ContactResponse])
 async def get_all_contacts(is_admin: bool = Depends(admin_auth)):
     async with DBApi() as db:
-        contacts = await db.get_all_contacts()
-        return contacts
+        # Используем новый метод get_all_contacts_query для получения SQLAlchemy-запроса
+        query = await db.get_all_contacts_query()
+        return await paginate(db._sess, query)
 
 # Получение контакта по ID
 @router.get("/{contact_id}", response_model=ContactResponse)

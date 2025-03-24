@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from api.dependencies import admin_auth
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 from database import DBApi
+from fastapi_pagination import Page  # Импортируем Page для пагинации
+from fastapi_pagination.ext.sqlalchemy import paginate  # Импортируем paginate для SQLAlchemy
 
 router = APIRouter(prefix="/admin/users", tags=["Admin - Users"])
 
@@ -39,12 +41,13 @@ async def create_user(user: UserCreate, is_admin: bool = Depends(admin_auth)):
             raise HTTPException(status_code=400, detail="Ошибка при создании пользователя")
         return user_data
 
-# Получение всех пользователей
-@router.get("/", response_model=List[UserResponse])
+# Получение всех пользователей с пагинацией
+@router.get("/", response_model=Page[UserResponse])
 async def get_all_users(is_admin: bool = Depends(admin_auth)):
     async with DBApi() as db:
-        users = await db.get_all_users()
-        return users
+        # Используем новый метод get_all_users_query для получения SQLAlchemy-запроса
+        query = await db.get_all_users_query()
+        return await paginate(db._sess, query)
 
 # Получение пользователя по ID
 @router.get("/{user_id}", response_model=UserResponse)

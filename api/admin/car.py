@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from api.dependencies import admin_auth
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 from database import DBApi
+from fastapi_pagination import Page  # Импортируем Page для пагинации
+from fastapi_pagination.ext.sqlalchemy import paginate  # Импортируем paginate для SQLAlchemy
 
 router = APIRouter(prefix="/admin/car", tags=["Admin - Car"])
 
@@ -94,12 +96,13 @@ async def create_car(car: CarCreate, is_admin: bool = Depends(admin_auth)):
             raise HTTPException(status_code=400, detail="Ошибка при создании автомобиля")
         return car_data
 
-# Получение всех автомобилей
-@router.get("/", response_model=List[CarResponse])
+# Получение всех автомобилей с пагинацией
+@router.get("/", response_model=Page[CarResponse])
 async def get_all_cars(is_admin: bool = Depends(admin_auth)):
     async with DBApi() as db:
-        car_ids = await db.get_all_cars()
-        return car_ids
+        # Предполагаем, что get_all_cars теперь возвращает SQLAlchemy-запрос
+        query = await db.get_all_cars_query()
+        return await paginate(db._sess, query)
 
 # Получение автомобиля по ID
 @router.get("/{car_id}", response_model=CarResponse)
