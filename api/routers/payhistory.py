@@ -1,5 +1,6 @@
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from datetime import timedelta, datetime
 from api.dependencies import telegram_auth
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
@@ -102,7 +103,17 @@ async def payment_callback(request: Request):
 
     async with DBApi() as db:
         if event_type == "payment.succeeded":
+            payhistory = await db.get_payhistory_by_invoice(payment_obj.get("id"))
+            if not payhistory:
+                raise HTTPException(status_code=404, detail="Платеж не найден")
+            
+            if payhistory.successfully:
+                return {"status": "ok"}
+            
             await db.update_payhistory_by_invoice(payment_obj.get("id"), successfully=True)
+            tariff = await db.get_tariff_by_id(payhistory.tariff_id)
+            end = datetime.now() + timedelta(days=tariff.days_count)
+            await db.create_subscription(payhistory.user_id, payhistory.tariff_id, subscription_end=end)
         elif event_type in ["payment.canceled", "payment.failed"]:
             # Можно залогировать неуспешный платёж или обновить статус записи
             pass
@@ -153,6 +164,15 @@ async def check_payment_status(invoice_id: str, user_id: int = Depends(telegram_
 
     # Обновляем статус записи, если платёж успешен
     if payment_obj.status == "succeeded":
-        async with DBApi() as db:
-            await db.update_payhistory_by_invoice(invoice_id, successfully=True)
+        payhistory = await db.get_payhistory_by_invoice(invoice_id)
+        if not payhistory:
+            raise HTTPException(status_code=404, detail="Платеж не найден")
+        
+        if payhistory.successfully:
+            return {"status": "ok"}
+        
+        await db.update_payhistory_by_invoice(invoice_id, successfully=True)
+        tariff = await db.get_tariff_by_id(payhistory.tariff_id)
+        end = datetime.now() + timedelta(days=tariff.days_count)
+        await db.create_subscription(payhistory.user_id, payhistory.tariff_id, subscription_end=end)
     return {"status": payment_obj.status}

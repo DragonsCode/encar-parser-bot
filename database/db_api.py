@@ -335,6 +335,7 @@ class DBApi(BaseDBApi):
         subscription = Subscription(user_id=user_id, tariff_id=tariff_id, subscription_end=subscription_end)
         self._sess.add(subscription)
         await self._sess.commit()
+        print("Created subscription")
         return subscription
 
     async def get_all_subscriptions(self) -> list[Subscription]:
