@@ -335,7 +335,6 @@ class DBApi(BaseDBApi):
         subscription = Subscription(user_id=user_id, tariff_id=tariff_id, subscription_end=subscription_end)
         self._sess.add(subscription)
         await self._sess.commit()
-        print("Created subscription")
         return subscription
 
     async def get_all_subscriptions(self) -> list[Subscription]:
@@ -540,7 +539,6 @@ class DBApi(BaseDBApi):
                 pay_obj.successfully = successfully
             if invoice_id is not None:
                 pay_obj.invoice_id = invoice_id
-                print("Invoice id changed")
             await self._sess.commit()
             return pay_obj
         return None
