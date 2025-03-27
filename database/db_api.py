@@ -493,9 +493,9 @@ class DBApi(BaseDBApi):
         result = await self._sess.execute(select(PayHistory).where(PayHistory.user_id == user_id).order_by(PayHistory.id.desc()))
         return result.scalars().first()
 
-    async def get_payhistory_by_invoice(self, invoice_id: int) -> PayHistory:
+    async def get_payhistory_by_invoice(self, invoice_id: str) -> PayHistory:
         """Получает запись в истории платежей по invoice_id."""
-        result = await self._sess.execute(select(PayHistory).where(PayHistory.intellect_invoice_id == invoice_id))
+        result = await self._sess.execute(select(PayHistory).where(PayHistory.invoice_id == invoice_id))
         return result.scalars().first()
 
     async def update_pay_history(self, pay_history_id: int, **kwargs) -> PayHistory:
@@ -510,9 +510,9 @@ class DBApi(BaseDBApi):
         print(f"Запись в истории платежей с id={pay_history_id} не найдена")
         return None
 
-    async def update_payhistory_by_invoice(self, invoice_id: int, successfully: bool = None):
+    async def update_payhistory_by_invoice(self, invoice_id: str, successfully: bool = None):
         """Обновляет запись в истории платежей по invoice_id."""
-        pay = await self._sess.execute(select(PayHistory).where(PayHistory.intellect_invoice_id == invoice_id))
+        pay = await self._sess.execute(select(PayHistory).where(PayHistory.invoice_id == invoice_id))
         pay_obj = pay.scalars().first()
         if pay_obj:
             if successfully is not None:
@@ -531,14 +531,15 @@ class DBApi(BaseDBApi):
         print(f"Запись в истории платежей с id={pay_history_id} не найдена")
         return False
     
-    async def edit_payhistory(self, id: int, invoice_id: int = None, successfully: bool = None):
+    async def edit_payhistory(self, id: int, invoice_id: str = None, successfully: bool = None):
         pay = await self._sess.execute(select(PayHistory).where(PayHistory.id == id))
         pay_obj = pay.scalars().first()
         if pay_obj:
             if successfully is not None:
                 pay_obj.successfully = successfully
             if invoice_id is not None:
-                pay_obj.intellect_invoice_id = invoice_id
+                pay_obj.invoice_id = invoice_id
+                print("Invoice id changed")
             await self._sess.commit()
             return pay_obj
         return None

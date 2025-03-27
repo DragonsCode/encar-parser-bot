@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, DateTime, ForeignKey, Float, Boolean
+from sqlalchemy import Column, BigInteger, DateTime, ForeignKey, Float, Boolean, VARCHAR
 from datetime import datetime
 
 from database.base import SqlAlchemyBase
@@ -11,7 +11,7 @@ class PayHistory(SqlAlchemyBase):
     tariff_id = Column(BigInteger, ForeignKey("tariffs.id"))
     price = Column(Float, default=None)
     successfully = Column(Boolean, default=None)
-    intellect_invoice_id = Column(BigInteger, nullable=True, unique=True)
+    invoice_id = Column(VARCHAR(255), nullable=True, unique=True)
     create_dttm = Column(DateTime, default=datetime.now)
     update_dttm = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -26,7 +26,7 @@ class PayHistory(SqlAlchemyBase):
             f"tariff_id={self.tariff_id}, "
             f"price={self.price}, "
             f"successfully={self.successfully}, "
-            f"intellect_invoice_id={self.intellect_invoice_id}, "
+            f"invoice_id={self.invoice_id}, "
             f"create_dttm={self.create_dttm}, "
             f"update_dttm={self.update_dttm}"
             f")>"

@@ -1,234 +1,158 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from api.dependencies import telegram_auth
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from api.dependencies import admin_auth
 from api.models import PayHistoryCreate
-from api.utils.intellectmoney import get_intellectmoney_keys, generate_sign_hash, generate_param_hash, generate_callback_hash
 from database import DBApi
-import requests
-import cgi
-from urllib.parse import unquote
+from yookassa import Payment, Configuration
 
 router = APIRouter(prefix="/payhistory", tags=["PayHistory"])
 
+# Модель входных данных для создания платежа
 class PaymentCreate(BaseModel):
-    user_id: int
     tariff_id: int
-    price: int
     email: str
     description: str = "Оплата подписки"
 
-async def decode_body(request: Request) -> str:
-    body = await request.body()
-    content_type = request.headers.get("content-type", "")
-    _, options = cgi.parse_header(content_type)
-    encoding = options.get("charset", "utf-8")
-    print("ENCODING: ", encoding)
-    # Декодируем тело в строку с указанной кодировкой
-    decoded_body = body.decode(encoding)
-    print("DECODED BODY: ", decoded_body)
-    # Применяем unquote к декодированной строке
-    return decoded_body  # unquote не нужен здесь, так как мы будем декодировать параметры позже
+async def get_yookassa_keys(db: DBApi):
+    keys = {}
+    keys["shop_id"] = (await db.get_setting_by_key("yookassa_shop_id")).value
+    keys["shop_secret_key"] = (await db.get_setting_by_key("yookassa_shop_secret_key")).value
+    return keys
 
-@router.post("/callback")
-async def payment_callback(request: Request):
-    """Обработка уведомлений от IntellectMoney."""
-    print("CALLBACK")
-    print("QUERY PARAMS: ", request.query_params)
-    print("PATH PARAMS: ", request.path_params)
-    body = await request.body()
-    print("CALLBACK BODY: ", body)
-
-    # Парсим данные как form-data
-    form_data = await request.form()
-    print("CALLBACK FORM DATA: ", form_data)
-
-    # Извлекаем параметры
-    invoice_id = form_data.get("paymentId")
-    payment_status = form_data.get("paymentStatus")
-
-    if not invoice_id or not payment_status:
-        raise HTTPException(status_code=400, detail="Отсутствуют обязательные параметры paymentId или paymentStatus")
-
-    # Проверяем подпись (hash)
-    secret_key = form_data.get("secretKey", "")  # Используем secretKey из callback
-    async with DBApi() as db:
-        intellect_secrets = await get_intellectmoney_keys(db)
-        secret_key = intellect_secrets["eshop_secret_key"]
-    received_hash = form_data.get("hash")
-
-    # Формируем параметры для проверки хеша, используя закодированные значения
-    raw_params = dict()
-    body_str = await decode_body(request)
-    print("BODY STR: ", body_str)
-    for pair in body_str.split("&"):
-        key, value = pair.split("=", 1)
-        raw_params[key] = value
-    print("RAW PARAMS: ", raw_params)
-
-    expected_hash = generate_callback_hash(raw_params, secret_key)
-    print("EXPECTED HASH: ", expected_hash)
-    print("RECEIVED HASH: ", received_hash)
-
-    if received_hash != expected_hash:
-        raise HTTPException(status_code=400, detail="Неверная подпись (hash)")
-
-    # Обрабатываем статус платежа
-    async with DBApi() as db:
-        if payment_status == "5":  # Успешно оплачено
-            await db.update_payhistory_by_invoice(invoice_id, successfully=True)
-        elif payment_status in ["6", "7"]:  # Ошибка или отклонён
-            pass
-
-    # Возвращаем ответ "OK" согласно документации
-    return "OK"
-
+# Эндпоинт для создания платежа через Юкассу
 @router.post("/create")
-async def create_payment(payment: PaymentCreate):
-    """Создание платежа через IntellectMoney."""
+async def create_payment(payment: PaymentCreate, user_id: int = Depends(telegram_auth)):
+    """
+    Создаёт запись в истории платежей и инициирует платёж через Юкассу.
+    """
     # Создаём запись в истории платежей
+    async with DBApi() as db:
+        tariff = await db.get_tariff_by_id(payment.tariff_id)
+        if not tariff:
+            raise HTTPException(status_code=404, detail="Тариф не найден")
+
     pay_data = PayHistoryCreate(
-        id=0,  # ID будет сгенерирован базой
-        user_id=payment.user_id,
+        id=0,  # ID сгенерируется в базе
+        user_id=user_id,
         tariff_id=payment.tariff_id,
-        price=payment.price,
+        price=tariff.price,
         successfully=False
     )
     async with DBApi() as db:
         success = await db.create_pay_history(**pay_data.model_dump())
         if not success:
             raise HTTPException(status_code=400, detail="Ошибка создания записи оплаты")
-        pay_record = await db.get_last_payhistory_by_user(payment.user_id)  # Предполагается, что такой метод есть
+        # Получаем запись платежа
+        pay_record = await db.get_last_payhistory_by_user(user_id)
+        # Получаем ключи Юкассы (аналог get_intellectmoney_keys)
+        keys = await get_yookassa_keys(db)
 
-        # Получаем ключи IntellectMoney
-        keys = await get_intellectmoney_keys(db)
+    # Настраиваем конфигурацию Юкассы
+    Configuration.account_id = keys["shop_id"]
+    Configuration.secret_key = keys["shop_secret_key"]
 
-    # Параметры для IntellectMoney
-    order_id = f"order_{pay_record.id}"
-    params = {
-        "eshopId": keys["eshop_id"],
-        "orderId": order_id,
-        "serviceName": payment.description,
-        "recipientAmount": f"{payment.price:.2f}",
-        "recipientCurrency": "TST",
-        "userName": "",
-        "email": payment.email,
-        "successUrl": "https://be54-84-54-90-137.ngrok-free.app/payhistory/success",
-        "failUrl": "https://be54-84-54-90-137.ngrok-free.app/payhistory/fail",
-        "backUrl": "https://a-b-d.ru/",
-        "resultUrl": "https://be54-84-54-90-137.ngrok-free.app/payhistory/callback",
-        "expireDate": "",
-        "holdMode": "",
-        "preference": ""
-    }
-
-    # Шаблоны для хешей
-    sign_template = "{eshopId}::{orderId}::{serviceName}::{recipientAmount}::{recipientCurrency}::{userName}::{email}::{successUrl}::{failUrl}::{backUrl}::{resultUrl}::{expireDate}::{holdMode}::{preference}::{signSecretKey}"
-    hash_template = "{eshopId}::{orderId}::{serviceName}::{recipientAmount}::{recipientCurrency}::{userName}::{email}::{successUrl}::{failUrl}::{backUrl}::{resultUrl}::{expireDate}::{holdMode}::{preference}::{secretKey}"
-
-    # Генерация хешей
-    sign_hash = generate_sign_hash(params, sign_template, keys["sign_secret_key"])
-    print(sign_hash)
-    param_hash = generate_param_hash(params, hash_template, keys["eshop_secret_key"])
-
-    # Запрос к IntellectMoney
-    headers = {
-        "Authorization": f"Bearer {keys['bearer_token']}",
-        "Sign": sign_hash,
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json"
-    }
-    response = requests.post(
-        "https://api.intellectmoney.ru/merchant/createInvoice",
-        headers=headers,
-        data={**params, "hash": param_hash}
-    )
-    print(response.status_code, response.text)
-
-    if response.status_code == 200:
-        data = response.json()
-        if data["OperationState"]["Code"] == 0 and data["Result"]["State"]["Code"] == 0:
-            invoice_id = data["Result"]["InvoiceId"]
-            async with DBApi() as db:
-                await db.edit_payhistory(pay_record.id, invoice_id=invoice_id)
-            payment_url = f"https://merchant.intellectmoney.ru/init/{invoice_id}/"
-            return {
-                "message": "Счёт успешно создан",
-                "invoice_id": invoice_id,
-                "payment_url": payment_url
+    # Создаём платёж через Юкассу
+    try:
+        payment_obj = Payment.create({
+            "amount": {
+                "value": f"{tariff.price:.2f}",
+                "currency": "RUB"
+            },
+            "confirmation": {
+                "type": "redirect",
+                "return_url": "https://a-b-d.ru/success"  # URL возврата после оплаты
+            },
+            "capture": True,
+            "description": payment.description,
+            "metadata": {
+                "pay_record_id": pay_record.id  # сохраняем ID записи для сопоставления
             }
-        raise HTTPException(status_code=400, detail=data["Result"]["State"]["Desc"])
-    raise HTTPException(status_code=response.status_code, detail="Ошибка при создании счёта")
+        }, uuid.uuid4())
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Ошибка создания платежа: {e}")
 
-# Временные эндпоинты для обработки success и fail
+    # Обновляем запись с идентификатором платежа (invoice_id)
+    async with DBApi() as db:
+        await db.edit_payhistory(pay_record.id, invoice_id=payment_obj.id)
+
+    return {
+        "message": "Счёт успешно создан",
+        "invoice_id": payment_obj.id,
+        "payment_url": payment_obj.confirmation.confirmation_url
+    }
+
+# Эндпоинт для обработки уведомлений (webhook) от Юкассы
+@router.post("/callback")
+async def payment_callback(request: Request):
+    """
+    Обрабатывает уведомления от Юкассы через Webhook.
+    Здесь обрабатываются статусы, например, 'payment.succeeded' или 'payment.canceled'.
+    """
+    event = await request.json()
+    event_type = event.get("event")
+    payment_obj = event.get("object", {})
+    # Из metadata получаем наш внутренний идентификатор записи
+    pay_record_id = payment_obj.get("metadata", {}).get("pay_record_id")
+
+    # Здесь можно добавить проверку HTTP-заголовков (например, Basic Auth) для валидации запроса
+    if not pay_record_id:
+        raise HTTPException(status_code=400, detail="Отсутствует pay_record_id в metadata")
+
+    async with DBApi() as db:
+        if event_type == "payment.succeeded":
+            await db.update_payhistory_by_invoice(payment_obj.get("id"), successfully=True)
+        elif event_type in ["payment.canceled", "payment.failed"]:
+            # Можно залогировать неуспешный платёж или обновить статус записи
+            pass
+
+    return {"status": "ok"}
+
+# Эндпоинты для редиректа после успешного/неуспешного платежа
 @router.get("/success")
 async def payment_success(request: Request):
-    """Обработка успешного платежа с перенаправлением на фронтенд."""
-    print("SUCCESS")
-    print("QUERY PARAMS: ", request.query_params)
-    print("PATH PARAMS: ", request.path_params)
-    data = await request.json()
-    print ("DATA: ", data)
-    # async with DBApi() as db:
-        # await db.update_payhistory_by_invoice(invoice_id, successfully=True)
-        # Здесь можно обновить подписку
+    """
+    Перенаправляет пользователя на фронтенд после успешного платежа.
+    """
     return RedirectResponse(url="https://a-b-d.ru/success")
 
 @router.get("/fail")
 async def payment_fail(request: Request):
-    """Обработка неуспешного платежа с перенаправлением на фронтенд."""
-    print("SUCCESS")
-    print("QUERY PARAMS: ", request.query_params)
-    print("PATH PARAMS: ", request.path_params)
-    data = await request.json()
-    print ("DATA: ", data)
-    # Можно логировать неудачу, но не обновляем статус
+    """
+    Перенаправляет пользователя на фронтенд после неуспешного платежа.
+    """
     return RedirectResponse(url="https://a-b-d.ru/fail")
 
+# Эндпоинт для проверки статуса платежа через Юкассу
 @router.get("/check/{invoice_id}")
-async def check_payment_status(invoice_id: int):
-    """Проверка статуса платежа через IntellectMoney."""
+async def check_payment_status(invoice_id: str, user_id: int = Depends(telegram_auth)):
+    """
+    Позволяет проверить статус платежа по invoice_id.
+    """
     async with DBApi() as db:
-        # Получаем ключи IntellectMoney
-        keys = await get_intellectmoney_keys(db)
+        # Получаем запись платежа
+        pay_record = await db.get_payhistory_by_invoice(invoice_id)
+    
+    if not pay_record:
+        raise HTTPException(status_code=404, detail="Запись в истории платежей не найдена")
+    
+    if pay_record.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Недостаточно прав для проверки статуса платежа")
+        
+    # Получаем ключи Юкассы
+    async with DBApi() as db:
+        keys = await get_yookassa_keys(db)
+    Configuration.account_id = keys["shop_id"]
+    Configuration.secret_key = keys["shop_secret_key"]
 
-    # Параметры для IntellectMoney
-    params = {
-        "eshopId": keys["eshop_id"],
-        "invoiceId": str(invoice_id)
-    }
+    try:
+        payment_obj = Payment.find_one(invoice_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Ошибка проверки платежа: {e}")
 
-    # Шаблоны для хешей
-    sign_template = "{eshopId}::{invoiceId}::{signSecretKey}"
-    hash_template = "{eshopId}::{invoiceId}::{secretKey}"
-
-    # Генерация хешей
-    sign_hash = generate_sign_hash(params, sign_template, keys["sign_secret_key"])
-    param_hash = generate_param_hash(params, hash_template, keys["eshop_secret_key"])
-
-    # Запрос к IntellectMoney
-    headers = {
-        "Authorization": f"Bearer {keys['bearer_token']}",
-        "Sign": sign_hash,
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json"
-    }
-    response = requests.post(
-        "https://api.intellectmoney.ru/merchant/getbankcardpaymentstate",
-        headers=headers,
-        data={**params, "hash": param_hash}
-    )
-
-    if response.status_code == 200:
-        data = response.json()
-        if data["OperationState"]["Code"] == 0 and data["Result"]["State"]["Code"] == 0:
-            payment_step = data["Result"]["PaymentStep"]
-            async with DBApi() as db:
-                if payment_step == "Ok":
-                    await db.update_payhistory_by_invoice(invoice_id, successfully=True)
-                    # Здесь можно обновить подписку, например:
-                    # pay_record = await db.get_payhistory_by_invoice(invoice_id)
-                    # await db.update_subscription(pay_record.user_id, pay_record.tariff_id)
-                return {"status": payment_step}
-        raise HTTPException(status_code=400, detail=data["Result"]["State"]["Desc"])
-    raise HTTPException(status_code=response.status_code, detail="Ошибка при проверке статуса")
+    # Обновляем статус записи, если платёж успешен
+    if payment_obj.status == "succeeded":
+        async with DBApi() as db:
+            await db.update_payhistory_by_invoice(invoice_id, successfully=True)
+    return {"status": payment_obj.status}
