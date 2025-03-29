@@ -10,8 +10,6 @@ async def run_parser_periodically():
     """Запускает парсинг автомобилей с заданными параметрами."""
     print("Запуск периодического парсинга...")
     await parse_full_car_info(max_pages=100)  # Можно настроить max_pages
-    print("Периодический парсинг завершен.")
-    await run_translation()
 
 async def run_scheduler():
     # Инициализация базы данных
