@@ -24,7 +24,7 @@ async def get_subscription(auth_user_id: int = Depends(telegram_auth)):
         if not sub:
             raise HTTPException(status_code=404, detail="Подписка не найдена")
         # Преобразуем объект SQLAlchemy в Pydantic-модель
-        return SubscriptionResponse.model_validate(sub)
+        return sub
 
 @router.post("/edit", response_model=SubscriptionResponse)
 async def edit_subscription(sub_data: SubscriptionEdit, is_admin: bool = Depends(admin_auth)):
