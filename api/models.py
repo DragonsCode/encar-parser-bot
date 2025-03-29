@@ -45,19 +45,22 @@ class SubscriptionEdit(BaseModel):
 
 class SubscriptionResponse(BaseModel):
     id: int
-    name: str
-    description: Optional[str] = None
-    filter_count: int
-    subscription_end: datetime
+    user_id: int
+    tariff_id: int
+    subscription_end: Optional[datetime] = None
+    create_dttm: datetime
+    update_dttm: datetime
 
 # Тарифы
 class TariffResponse(BaseModel):
     id: int
-    name: str
+    name: Optional[str] = None
     description: Optional[str] = None
-    days_count: int
-    price: int
-    filter_count: int
+    days_count: Optional[int] = None
+    price: Optional[float] = None
+    filters_count: Optional[int] = None
+    create_dttm: datetime
+    update_dttm: datetime
 
 # Контакты
 class ContactResponse(BaseModel):
