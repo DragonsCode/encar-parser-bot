@@ -14,8 +14,8 @@ async def create_subscription(sub_data: SubscriptionCreate, is_admin: bool = Dep
         sub = await db.create_subscription(**sub_data.model_dump())
         return await db.get_subscription_by_id(sub.id)
 
-@router.get("/{user_id}", response_model=SubscriptionResponse)
-async def get_subscription(user_id: int, auth_user_id: int = Depends(telegram_auth)):
+@router.get("/", response_model=SubscriptionResponse)
+async def get_subscription(auth_user_id: int = Depends(telegram_auth)):
     """
     Depends on telegram_auth
     """
