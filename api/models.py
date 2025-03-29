@@ -51,6 +51,9 @@ class SubscriptionResponse(BaseModel):
     create_dttm: datetime
     update_dttm: datetime
 
+    class Config:
+        from_attributes = True
+
 # Тарифы
 class TariffResponse(BaseModel):
     id: int
