@@ -56,8 +56,6 @@ async def get_all_subscriptions(is_admin: bool = Depends(admin_auth)):
 async def get_subscription_by_user(user_id: int, is_admin: bool = Depends(admin_auth)):
     async with DBApi() as db:
         subscription = await db.get_subscription_by_user_query(user_id)
-        if not subscription:
-            raise HTTPException(status_code=404, detail="Подписка не найдена")
         return paginate(db._sess, subscription)
 
 # Получение подписок, истекающих в заданном временном интервале, с пагинацией
