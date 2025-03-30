@@ -35,7 +35,6 @@ async def create_payment(payment: PaymentCreate, user_id: int = Depends(telegram
             raise HTTPException(status_code=404, detail="Тариф не найден")
 
     pay_data = PayHistoryCreate(
-        id=0,  # ID сгенерируется в базе
         user_id=user_id,
         tariff_id=payment.tariff_id,
         price=tariff.price,

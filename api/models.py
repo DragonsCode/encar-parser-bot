@@ -73,7 +73,6 @@ class ContactResponse(BaseModel):
 
 # Операции оплаты
 class PayHistoryCreate(BaseModel):
-    id: int
     user_id: int
     price: int
     tariff_id: int
