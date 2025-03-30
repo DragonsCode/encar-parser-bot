@@ -134,6 +134,14 @@ async def payment_fail(request: Request):
     """
     return RedirectResponse(url="https://a-b-d.ru/fail")
 
+@router.get("/last")
+async def get_last_pay_history(user_id: int = Depends(telegram_auth)):
+    async with DBApi() as db:
+        pay_history = await db.get_last_payhistory_by_user(user_id)
+        if not pay_history:
+            raise HTTPException(status_code=404, detail="Запись в истории платежей не найдена")
+        return pay_history
+
 # Эндпоинт для проверки статуса платежа через Юкассу
 @router.get("/check/{invoice_id}")
 async def check_payment_status(invoice_id: str, user_id: int = Depends(telegram_auth)):

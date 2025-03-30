@@ -32,6 +32,20 @@ class FilterResponse(BaseModel):
     date_release_from: Optional[datetime] = None
     date_release_defor: Optional[datetime] = None
 
+# Тарифы
+class TariffResponse(BaseModel):
+    id: int
+    name: Optional[str] = None
+    description: Optional[str] = None
+    days_count: Optional[int] = None
+    price: Optional[float] = None
+    filters_count: Optional[int] = None
+    create_dttm: datetime
+    update_dttm: datetime
+
+    class Config:
+        from_attributes = True
+
 # Подписка
 class SubscriptionCreate(BaseModel):
     user_id: int
@@ -46,24 +60,13 @@ class SubscriptionEdit(BaseModel):
 class SubscriptionResponse(BaseModel):
     id: int
     user_id: int
-    tariff_id: int
+    tariff: TariffResponse  # Заменяем tariff_id на объект tariff
     subscription_end: Optional[datetime] = None
     create_dttm: datetime
     update_dttm: datetime
 
     class Config:
         from_attributes = True
-
-# Тарифы
-class TariffResponse(BaseModel):
-    id: int
-    name: Optional[str] = None
-    description: Optional[str] = None
-    days_count: Optional[int] = None
-    price: Optional[float] = None
-    filters_count: Optional[int] = None
-    create_dttm: datetime
-    update_dttm: datetime
 
 # Контакты
 class ContactResponse(BaseModel):
