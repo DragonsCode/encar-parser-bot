@@ -13,7 +13,7 @@ async def create_filter(filter_data: FilterCreate, user_id: int = Depends(telegr
     """
     async with DBApi() as db:
         # Проверка лимита фильтров (по подписке)
-        subscription = await db.get_subscription_by_user(user_id)
+        subscription = await db.get_active_subscription_by_user(user_id)
         if not subscription:
             raise HTTPException(status_code=403, detail="У вас нет активной подписки")
         
