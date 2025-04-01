@@ -24,7 +24,10 @@ async def create_filter(filter_data: FilterCreate, user_id: int = Depends(telegr
         
         # Создание фильтра
         filter_obj = await db.create_filter(**filter_data.model_dump())
-        return await db.get_filter_by_id(filter_obj.id)
+        filter_fetched = await db.get_filter_by_id(filter_obj.id)
+        if not filter_fetched:
+            raise HTTPException(status_code=404, detail="Фильтр не найден после создания")
+        return FilterResponse.model_validate(filter_fetched)
 
 @router.get("/{user_id}", response_model=List[FilterResponse])
 async def get_filters(auth_user_id: int = Depends(telegram_auth)):
@@ -33,7 +36,7 @@ async def get_filters(auth_user_id: int = Depends(telegram_auth)):
     """
     async with DBApi() as db:
         filters = await db.get_filters_by_user(auth_user_id)
-        return filters
+        return [FilterResponse.model_validate(f) for f in filters]
 
 @router.delete("/{id}")
 async def delete_filter(id: int, is_admin: bool = Depends(admin_auth)):

@@ -32,6 +32,9 @@ class FilterResponse(BaseModel):
     date_release_from: Optional[datetime] = None
     date_release_defor: Optional[datetime] = None
 
+    class Config:
+        from_attributes = True
+
 # Тарифы
 class TariffResponse(BaseModel):
     id: int

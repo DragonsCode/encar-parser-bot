@@ -295,7 +295,10 @@ class DBApi(BaseDBApi):
         return result.scalars().all()
     
     async def get_filters_count_by_user(self, user_id: int):
-        result = await self._sess.execute(select(func.count(Filters.id)).where(Filters.user_id == user_id).order_by(Filters.create_dttm.asc()))
+        result = await self._sess.execute(
+            select(func.count(Filters.id))
+            .where(Filters.user_id == user_id)
+        )
         return result.scalar()
     
     async def get_filters_by_user_query(self, user_id: int):
