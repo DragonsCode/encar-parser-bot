@@ -13,11 +13,11 @@ class FilterCreate(BaseModel):
     # drive_type_id: Optional[int] = None
     car_color_id: Optional[int] = None
     mileage_from: Optional[int] = None
-    mileage_defore: Optional[int] = None  # Предполагается "mileage_before", исправлено в ТЗ как "defore"
+    mileage_defore: Optional[int] = None
     price_from: Optional[int] = None
-    price_defore: Optional[int] = None  # То же самое
+    price_defore: Optional[int] = None
     date_release_from: Optional[datetime] = None
-    date_release_defor: Optional[datetime] = None  # То же самое
+    date_release_defore: Optional[datetime] = None
 
 class FilterResponse(BaseModel):
     id: int
