@@ -24,6 +24,10 @@ async def create_filter(filter_data: FilterCreate, user_id: int = Depends(telegr
             raise HTTPException(status_code=403, detail="Превышен лимит фильтров. Удалите старые или обновите подписку")
         
         # Создание фильтра
+        if filter_data.date_release_defore:
+            filter_data.date_release_defore = filter_data.date_release_defore.replace(tzinfo=None)
+        if filter_data.date_release_from:
+            filter_data.date_release_from = filter_data.date_release_from.replace(tzinfo=None)
         filter_obj = await db.create_filter(user_id, **filter_data.model_dump())
         filter_fetched = await db.get_filter_by_id(filter_obj.id)
         if not filter_fetched:
