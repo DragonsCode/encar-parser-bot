@@ -1,10 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
 from typing import Optional, List
 
 # Фильтры
 class FilterCreate(BaseModel):
-    user_id: int
     manufacture_id: Optional[int] = None
     model_id: Optional[int] = None
     series_id: Optional[int] = None
@@ -18,6 +17,14 @@ class FilterCreate(BaseModel):
     price_defore: Optional[int] = None
     date_release_from: Optional[datetime] = None
     date_release_defore: Optional[datetime] = None
+
+    @field_validator("date_release_from", "date_release_defor", mode="before")
+    def make_datetime_naive(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, datetime) and value.tzinfo is not None:
+            return value.replace(tzinfo=None)
+        return value
 
 class FilterResponse(BaseModel):
     id: int

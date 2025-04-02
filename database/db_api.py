@@ -18,6 +18,7 @@ from database.tariffs import Tariffs
 from database.payhistory import PayHistory
 from database.contacts import Contacts
 from database.settings import Settings
+from database.viewed_cars import ViewedCars
 
 
 class DBApi(BaseDBApi):
@@ -644,3 +645,79 @@ class DBApi(BaseDBApi):
             return True
         print(f"Настройка с id={setting_id} не найдена")
         return False
+    
+    async def create_viewed_car(self, user_id: int, filter_id: int, car_id: int) -> ViewedCars:
+        """Создаёт запись о просмотренном автомобиле."""
+        viewed_car = ViewedCars(user_id=user_id, filter_id=filter_id, car_id=car_id)
+        self._sess.add(viewed_car)
+        await self._sess.commit()
+        return viewed_car
+
+    async def get_viewed_cars_by_filter(self, user_id: int, filter_id: int) -> list[int]:
+        """Получает список ID просмотренных автомобилей для фильтра."""
+        result = await self._sess.execute(
+            select(ViewedCars.car_id).where(
+                ViewedCars.user_id == user_id,
+                ViewedCars.filter_id == filter_id
+            )
+        )
+        return [row[0] for row in result.fetchall()]
+
+    async def get_unviewed_cars_by_filter(self, filter_id: int, user_id: int, limit: int = 1):
+        """Получает непросмотренные автомобили, соответствующие фильтру."""
+        filter_obj = await self.get_filter_by_id(filter_id)
+        if not filter_obj:
+            return []
+
+        query = select(Car).where(
+            (Car.manufacture_id == filter_obj.manufacture_id) if filter_obj.manufacture_id else True,
+            (Car.model_id == filter_obj.model_id) if filter_obj.model_id else True,
+            (Car.series_id == filter_obj.series_id) if filter_obj.series_id else True,
+            (Car.equipment_id == filter_obj.equipment_id) if filter_obj.equipment_id else True,
+            (Car.engine_type_id == filter_obj.engine_type_id) if filter_obj.engine_type_id else True,
+            (Car.car_color_id == filter_obj.car_color_id) if filter_obj.car_color_id else True,
+            (Car.mileage >= filter_obj.mileage_from) if filter_obj.mileage_from else True,
+            (Car.mileage <= filter_obj.mileage_defore) if filter_obj.mileage_defore else True,
+            (Car.price_rub >= filter_obj.price_from) if filter_obj.price_from else True,
+            (Car.price_rub <= filter_obj.price_defore) if filter_obj.price_defore else True,
+            (Car.date_release >= filter_obj.date_release_from) if filter_obj.date_release_from else True,
+            (Car.date_release <= filter_obj.date_release_defore) if filter_obj.date_release_defore else True,
+        )
+
+        viewed_cars = await self.get_viewed_cars_by_filter(user_id, filter_id)
+        if viewed_cars:
+            query = query.where(Car.id.notin_(viewed_cars))
+
+        query = query.limit(limit)
+        result = await self._sess.execute(query)
+        return result.scalars().all()
+
+    async def get_new_cars_by_filter(self, filter_id: int, user_id: int, limit: int = 1):
+        """Получает новые автомобили, добавленные после создания фильтра."""
+        filter_obj = await self.get_filter_by_id(filter_id)
+        if not filter_obj:
+            return []
+
+        query = select(Car).where(
+            Car.create_dttm > filter_obj.create_dttm,
+            (Car.manufacture_id == filter_obj.manufacture_id) if filter_obj.manufacture_id else True,
+            (Car.model_id == filter_obj.model_id) if filter_obj.model_id else True,
+            (Car.series_id == filter_obj.series_id) if filter_obj.series_id else True,
+            (Car.equipment_id == filter_obj.equipment_id) if filter_obj.equipment_id else True,
+            (Car.engine_type_id == filter_obj.engine_type_id) if filter_obj.engine_type_id else True,
+            (Car.car_color_id == filter_obj.car_color_id) if filter_obj.car_color_id else True,
+            (Car.mileage >= filter_obj.mileage_from) if filter_obj.mileage_from else True,
+            (Car.mileage <= filter_obj.mileage_defore) if filter_obj.mileage_defore else True,
+            (Car.price_rub >= filter_obj.price_from) if filter_obj.price_from else True,
+            (Car.price_rub <= filter_obj.price_defore) if filter_obj.price_defore else True,
+            (Car.date_release >= filter_obj.date_release_from) if filter_obj.date_release_from else True,
+            (Car.date_release <= filter_obj.date_release_defore) if filter_obj.date_release_defore else True,
+        )
+
+        viewed_cars = await self.get_viewed_cars_by_filter(user_id, filter_id)
+        if viewed_cars:
+            query = query.where(Car.id.notin_(viewed_cars))
+
+        query = query.limit(limit)
+        result = await self._sess.execute(query)
+        return result.scalars().all()

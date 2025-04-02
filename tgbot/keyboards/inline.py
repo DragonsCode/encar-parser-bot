@@ -19,3 +19,9 @@ def get_web_app_keyboard(url: str) -> InlineKeyboardMarkup:
     builder.button(text='Открыть приложение', web_app=WebAppInfo(url=url))
     builder.adjust(1)
     return builder.as_markup()
+
+def get_more_cars_keyboard(filter_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text='Ещё', callback_data=f"more_cars:{filter_id}")
+    builder.adjust(1)
+    return builder.as_markup()

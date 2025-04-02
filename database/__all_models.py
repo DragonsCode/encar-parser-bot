@@ -1,1 +1,1 @@
-from . import users, car_color, car, contacts, engine_type, equipment, filters, manufacture, models, payhistory, series, settings, subscription, tariffs
+from . import users, car_color, car, contacts, engine_type, equipment, filters, manufacture, models, payhistory, series, settings, subscription, tariffs, viewed_cars

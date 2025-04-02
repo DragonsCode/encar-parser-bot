@@ -3,6 +3,7 @@ from api.dependencies import telegram_auth, admin_auth
 from api.models import FilterCreate, FilterResponse
 from database import DBApi
 from typing import List
+from functions.new_filter import send_car_by_filter
 
 router = APIRouter(prefix="/filter", tags=["Filters"])
 
@@ -23,10 +24,11 @@ async def create_filter(filter_data: FilterCreate, user_id: int = Depends(telegr
             raise HTTPException(status_code=403, detail="Превышен лимит фильтров. Удалите старые или обновите подписку")
         
         # Создание фильтра
-        filter_obj = await db.create_filter(**filter_data.model_dump())
+        filter_obj = await db.create_filter(user_id, **filter_data.model_dump())
         filter_fetched = await db.get_filter_by_id(filter_obj.id)
         if not filter_fetched:
             raise HTTPException(status_code=404, detail="Фильтр не найден после создания")
+        await send_car_by_filter(user_id, filter_obj.id)
         return FilterResponse.model_validate(filter_fetched)
 
 @router.get("/{user_id}", response_model=List[FilterResponse])
