@@ -9,7 +9,6 @@ class FilterCreate(BaseModel):
     series_id: Optional[int] = None
     equipment_id: Optional[int] = None
     engine_type_id: Optional[int] = None
-    # drive_type_id: Optional[int] = None
     car_color_id: Optional[int] = None
     mileage_from: Optional[int] = None
     mileage_defore: Optional[int] = None
@@ -18,7 +17,8 @@ class FilterCreate(BaseModel):
     date_release_from: Optional[datetime] = None
     date_release_defore: Optional[datetime] = None
 
-    @field_validator("date_release_from", "date_release_defor", mode="before")
+    @field_validator("date_release_from", "date_release_defore", mode="before")
+    @classmethod
     def make_datetime_naive(cls, value):
         if value is None:
             return None
