@@ -71,7 +71,7 @@ async def root():
 
 @app.get("/test-telegram-auth")
 async def test_telegram_auth(user_id: int = Depends(telegram_auth)):
-    return {"message": f"Вы авторизованы как пользователь Telegram с ID {user_id}"}
+    return {"message": f"Вы авторизованы как пользователь Telegram с ID {user_id}", "user_id": user_id}
 
 @app.get("/test-admin-auth")
 async def test_admin_auth(is_admin: bool = Depends(admin_auth)):
