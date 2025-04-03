@@ -25,6 +25,9 @@ class FilterCreate(BaseModel):
         if isinstance(value, datetime) and value.tzinfo is not None:
             return value.replace(tzinfo=None)
         return value
+    
+    # class Config:
+    #     from_attributes = True
 
 class FilterResponse(BaseModel):
     id: int
@@ -40,9 +43,6 @@ class FilterResponse(BaseModel):
     price_defore: Optional[int] = None
     date_release_from: Optional[datetime] = None
     date_release_defore: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 # Тарифы
 class TariffResponse(BaseModel):

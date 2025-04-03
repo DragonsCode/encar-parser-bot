@@ -7,7 +7,7 @@ from functions.new_filter import send_car_by_filter
 
 router = APIRouter(prefix="/filter", tags=["Filters"])
 
-@router.post("/create", response_model=FilterResponse)
+@router.post("/create", response_model=FilterCreate)
 async def create_filter(filter_data: FilterCreate, user_id: int = Depends(telegram_auth)):
     """
     Depends on telegram_auth
@@ -33,7 +33,7 @@ async def create_filter(filter_data: FilterCreate, user_id: int = Depends(telegr
         if not filter_fetched:
             raise HTTPException(status_code=404, detail="Фильтр не найден после создания")
         await send_car_by_filter(user_id, filter_obj.id)
-        return FilterResponse.model_validate(filter_fetched)
+        return FilterCreate.model_validate(filter_fetched)
 
 @router.get("/list", response_model=List[FilterResponse])
 async def get_filters(auth_user_id: int = Depends(telegram_auth)):
