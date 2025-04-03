@@ -1,6 +1,7 @@
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart, Command, CommandObject
+import aiogram.utils.markdown as fmt
 import asyncio
 from tgbot.keyboards.inline import get_web_app_keyboard, get_more_cars_keyboard
 from functions import parse_cars
@@ -95,10 +96,10 @@ async def more_cars_handler(callback_query: CallbackQuery, bot: Bot):
             f"🥷🏻 Угон: {car_data.get('theft', 0)}\n"
             f"🌊 Наводнения: {car_data.get('flood', 0)}\n"
             f"🧨 Кол-во (полная гибель): {car_data.get('total_loss', 0)}\n"
-            f"🌐 Страница на Encar.com: {car_data.get('link', 'N/A')}"
+            "🌐 Страница на " + fmt.hlink("Encar.com", car_data.get('link', 'https://encar.com/'))
         )
 
         keyboard = get_more_cars_keyboard(filter_id)
 
-        await bot.send_message(user_id, message_text, reply_markup=keyboard)
+        await bot.send_message(user_id, message_text, reply_markup=keyboard, parse_mode="HTML")
         await db.create_viewed_car(user_id, filter_id, car.id)

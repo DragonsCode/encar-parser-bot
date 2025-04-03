@@ -1,4 +1,5 @@
 from aiogram import Bot
+import aiogram.utils.markdown as fmt
 from database import DBApi
 from tgbot.keyboards.inline import get_more_cars_keyboard
 
@@ -69,10 +70,10 @@ async def send_car_by_filter(user_id: int, filter_id: int, first=True):
             f"🥷🏻 Угон: {car_data.get('theft', 0)}\n"
             f"🌊 Наводнения: {car_data.get('flood', 0)}\n"
             f"🧨 Кол-во (полная гибель): {car_data.get('total_loss', 0)}\n"
-            f"🌐 Страница на Encar.com: {car_data.get('link', 'N/A')}"
+            "🌐 Страница на " + fmt.hlink("Encar.com", car_data.get('link', 'https://encar.com/'))
         )
 
         keyboard = get_more_cars_keyboard(filter_id)
 
-        await bot.send_message(user_id, message_text, reply_markup=keyboard)
+        await bot.send_message(user_id, message_text, reply_markup=keyboard, parse_mode="HTML")
         await db.create_viewed_car(user_id, filter_id, car.id)
