@@ -19,6 +19,8 @@ async def send_car_by_filter(user_id: int, filter_id: int, first=True):
         if not cars and not first:
             await bot.send_message(user_id, "Все автомобили просмотрены.")
             return
+        if not cars:
+            return
 
         car = cars[0]
         model = await db.get_model_by_id(car.model_id)
