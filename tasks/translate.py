@@ -13,8 +13,8 @@ import json
 
 # Настройка клиента OpenAI
 openai_api_key = ''
-if not openai_api_key:
-    raise ValueError("Не найден API-ключ OpenAI. Установите переменную окружения OPENAI_API_KEY.")
+# if not openai_api_key:
+#     raise ValueError("Не найден API-ключ OpenAI. Установите переменную окружения OPENAI_API_KEY.")
 
 client = AsyncOpenAI(api_key=openai_api_key)
 
