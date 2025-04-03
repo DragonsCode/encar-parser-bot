@@ -78,6 +78,11 @@ class DBApi(BaseDBApi):
         self._sess.add(color)
         await self._sess.commit()
         return color
+    
+    async def get_car_color_by_id(self, color_id: int) -> CarColor:
+        """Получает цвет автомобиля по ID."""
+        result = await self._sess.execute(select(CarColor).where(CarColor.id == color_id))
+        return result.scalars().first()
 
     async def get_car_color_by_name(self, name: str) -> CarColor:
         """Получает цвет автомобиля по названию."""
@@ -101,6 +106,11 @@ class DBApi(BaseDBApi):
         self._sess.add(manufacture)
         await self._sess.commit()
         return manufacture
+    
+    async def get_manufacture_by_id(self, manufacture_id: int) -> Manufacture:
+        """Получает производителя по ID."""
+        result = await self._sess.execute(select(Manufacture).where(Manufacture.id == manufacture_id))
+        return result.scalars().first()
 
     async def get_manufacture_by_name(self, name: str) -> Manufacture:
         """Получает производителя по названию."""
@@ -124,6 +134,11 @@ class DBApi(BaseDBApi):
         self._sess.add(model)
         await self._sess.commit()
         return model
+    
+    async def get_model_by_id(self, model_id: int) -> Models:
+        """Получает модель по ID."""
+        result = await self._sess.execute(select(Models).where(Models.id == model_id))
+        return result.scalars().first()
 
     async def get_model_by_name(self, name: str) -> Models:
         """Получает модель по названию."""
@@ -147,6 +162,11 @@ class DBApi(BaseDBApi):
         self._sess.add(series)
         await self._sess.commit()
         return series
+    
+    async def get_series_by_id(self, series_id: int) -> Series:
+        """Получает серию по ID."""
+        result = await self._sess.execute(select(Series).where(Series.id == series_id))
+        return result.scalars().first()
 
     async def get_series_by_name(self, name: str) -> Series:
         """Получает серию по названию."""
@@ -170,6 +190,11 @@ class DBApi(BaseDBApi):
         self._sess.add(equipment)
         await self._sess.commit()
         return equipment
+    
+    async def get_equipment_by_id(self, equipment_id: int) -> Equipment:
+        """Получает комплектацию по ID."""
+        result = await self._sess.execute(select(Equipment).where(Equipment.id == equipment_id))
+        return result.scalars().first()
 
     async def get_equipment_by_name(self, name: str) -> Equipment:
         """Получает комплектацию по названию."""
@@ -193,6 +218,11 @@ class DBApi(BaseDBApi):
         self._sess.add(engine_type)
         await self._sess.commit()
         return engine_type
+    
+    async def get_engine_type_by_id(self, engine_type_id: int) -> EngineType:
+        """Получает тип двигателя по ID."""
+        result = await self._sess.execute(select(EngineType).where(EngineType.id == engine_type_id))
+        return result.scalars().first()
 
     async def get_engine_type_by_name(self, name: str) -> EngineType:
         """Получает тип двигателя по названию."""
@@ -216,6 +246,11 @@ class DBApi(BaseDBApi):
         self._sess.add(drive_type)
         await self._sess.commit()
         return drive_type
+    
+    async def get_drive_type_by_id(self, drive_type_id: int) -> DriveType:
+        """Получает тип привода по ID."""
+        result = await self._sess.execute(select(DriveType).where(DriveType.id == drive_type_id))
+        return result.scalars().first()
 
     async def get_drive_type_by_name(self, name: str) -> DriveType:
         """Получает тип привода по названию."""
