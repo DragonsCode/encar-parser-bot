@@ -5,9 +5,9 @@ from database.base import SqlAlchemyBase
 class ViewedCars(SqlAlchemyBase):
     __tablename__ = "viewed_cars"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"))
-    filter_id = Column(BigInteger, ForeignKey("filters.id"))
-    car_id = Column(BigInteger)
+    user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"))
+    filter_id = Column(BigInteger, ForeignKey("filters.id", ondelete="CASCADE"))
+    car_id = Column(BigInteger, ForeignKey("car.id", ondelete="CASCADE"))
     viewed_dttm = Column(DateTime, default=datetime.now)
 
     def __repr__(self):

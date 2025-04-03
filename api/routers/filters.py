@@ -45,11 +45,14 @@ async def get_filters(auth_user_id: int = Depends(telegram_auth)):
         return [FilterResponse.model_validate(f) for f in filters]
 
 @router.delete("/{id}")
-async def delete_filter(id: int, is_admin: bool = Depends(admin_auth)):
+async def delete_filter(id: int, user_id: bool = Depends(telegram_auth)):
     """
-    Depends on admin_auth
+    Depends on telegram_auth
     """
     async with DBApi() as db:
+        filter = await db.get_filter_by_id(id)
+        if not filter or filter.user_id != user_id:
+            raise HTTPException(status_code=404, detail="Фильтр не найден")
         success = await db.delete_filter(id)
         if not success:
             raise HTTPException(status_code=404, detail="Фильтр не найден")
