@@ -44,6 +44,12 @@ async def get_filters(auth_user_id: int = Depends(telegram_auth)):
     async with DBApi() as db:
         filters = await db.get_filters_by_user(auth_user_id)
         for i in filters:
+            manufacture = None
+            model = None
+            series = None
+            equipment = None
+            engine_type = None
+            car_color = None
             if i.manufacture_id:
                 manufacture = await db.get_manufacture_by_id(i.manufacture_id)
             if i.model_id:
