@@ -28,16 +28,18 @@ class FilterCreate(BaseModel):
 
 class FilterResponse(BaseModel):
     id: int
-    manufacture_name: Optional[str] = None
-    model_name: Optional[str] = None
-    series_name: Optional[str] = None
-    equipment_name: Optional[str] = None
+    manufacture_id: Optional[int] = None
+    model_id: Optional[int] = None
+    series_id: Optional[int] = None
+    equipment_id: Optional[int] = None
+    engine_type_id: Optional[int] = None
+    car_color_id: Optional[int] = None
     mileage_from: Optional[int] = None
     mileage_defore: Optional[int] = None
     price_from: Optional[int] = None
     price_defore: Optional[int] = None
     date_release_from: Optional[datetime] = None
-    date_release_defor: Optional[datetime] = None
+    date_release_defore: Optional[datetime] = None
 
     class Config:
         from_attributes = True

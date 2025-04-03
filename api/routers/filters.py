@@ -35,7 +35,7 @@ async def create_filter(filter_data: FilterCreate, user_id: int = Depends(telegr
         await send_car_by_filter(user_id, filter_obj.id)
         return FilterResponse.model_validate(filter_fetched)
 
-@router.get("/{user_id}", response_model=List[FilterResponse])
+@router.get("/list", response_model=List[FilterResponse])
 async def get_filters(auth_user_id: int = Depends(telegram_auth)):
     """
     Depends on telegram_auth

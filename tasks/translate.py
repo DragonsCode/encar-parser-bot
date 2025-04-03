@@ -12,7 +12,7 @@ from sqlalchemy import select
 import json
 
 # Настройка клиента OpenAI
-openai_api_key = ''
+openai_api_key =''
 # if not openai_api_key:
 #     raise ValueError("Не найден API-ключ OpenAI. Установите переменную окружения OPENAI_API_KEY.")
 
@@ -69,13 +69,13 @@ async def translate_text(text: str, table_name: str) -> str:
 async def translate_table_data():
     """Переводит данные в таблицах с корейского на русский с помощью GPT-4o-mini."""
     tables = [
-        (Manufacture, "manufacture"),
-        (Models, "models"),
+        # (Manufacture, "manufacture"), # Done
+        # (Models, "models"), # Done
         (Series, "series"),
-        (Equipment, "equipment"),
-        (EngineType, "engine_type"),
-        (DriveType, "drive_type"),
-        (CarColor, "car_color")
+        # (Equipment, "equipment"), # Done
+        # (EngineType, "engine_type"), # Done
+        # (DriveType, "drive_type"), # Done
+        # (CarColor, "car_color") # Done
     ]
     
     BATCH_SIZE = 50  # Размер пачки для обновления
