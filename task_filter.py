@@ -1,5 +1,6 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import asyncio
+import logging
 from aiogram import Bot
 import aiogram.utils.markdown as fmt
 from database import DBApi
@@ -107,4 +108,5 @@ async def run_scheduler():
         print("Планировщик остановлен")
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     asyncio.run(run_scheduler())
