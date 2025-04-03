@@ -11,11 +11,11 @@ async def get_bot():
             raise ValueError("Токен Telegram бота не найден в настройках базы данных")
         return Bot(token=setting.value)
 
-async def send_car_by_filter(user_id: int, filter_id: int):
+async def send_car_by_filter(user_id: int, filter_id: int, first=True):
     bot = await get_bot()
     async with DBApi() as db:
         cars = await db.get_unviewed_cars_by_filter(filter_id, user_id, limit=1)
-        if not cars:
+        if not cars and not first:
             await bot.send_message(user_id, "Все автомобили просмотрены.")
             return
 
