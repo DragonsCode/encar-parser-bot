@@ -40,9 +40,41 @@ async def get_filters(auth_user_id: int = Depends(telegram_auth)):
     """
     Depends on telegram_auth
     """
+    filters_data = []
     async with DBApi() as db:
         filters = await db.get_filters_by_user(auth_user_id)
-        return [FilterResponse.model_validate(f) for f in filters]
+        for i in filters:
+            if i.manufacture_id:
+                manufacture = await db.get_manufacture_by_id(i.manufacture_id)
+            if i.model_id:
+                model = await db.get_model_by_id(i.model_id)
+            if i.series_id:
+                series = await db.get_series_by_id(i.series_id)
+            if i.equipment_id:
+                equipment = await db.get_equipment_by_id(i.equipment_id)
+            if i.engine_type_id:
+                engine_type = await db.get_engine_type_by_id(i.engine_type_id)
+            if i.car_color_id:
+                car_color = await db.get_car_color_by_id(i.car_color_id)
+            filters_data.append(
+                {
+                    "id": i.id,
+                    "manufacture": manufacture.translated if manufacture else None,
+                    "model": model.translated if model else None,
+                    "series": series.translated if series else None,
+                    "equipment": equipment.translated if equipment else None,
+                    "engine_type": engine_type.translated if engine_type else None,
+                    "car_color": car_color.translated if car_color else None,
+                    "mileage_from": i.mileage_from,
+                    "mileage_defore": i.mileage_defore,
+                    "price_from": i.price_from,
+                    "price_defore": i.price_defore,
+                    "date_release_from": i.date_release_from,
+                    "date_release_defore": i.date_release_defore,
+                }
+            )
+
+    return [FilterResponse.model_validate(f) for f in filters]
 
 @router.delete("/{id}")
 async def delete_filter(id: int, user_id: bool = Depends(telegram_auth)):
