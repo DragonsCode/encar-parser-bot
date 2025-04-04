@@ -181,5 +181,21 @@ async def check_payment_status(invoice_id: str, user_id: int = Depends(telegram_
         await db.update_payhistory_by_invoice(invoice_id, successfully=True)
         tariff = await db.get_tariff_by_id(payhistory.tariff_id)
         end = datetime.now() + timedelta(days=tariff.days_count)
-        await db.create_subscription(payhistory.user_id, payhistory.tariff_id, subscription_end=end)
+        active_subscription = await db.get_active_subscription_by_user(payhistory.user_id)
+        if active_subscription:
+            active_subscription = await db.update_subscription(active_subscription.id, tariff_id=payhistory.tariff_id, subscription_end=end)
+            filters = await db.get_filters_by_user(user_id)
+            filters_count = len(filters)
+            tariff = await db.get_tariff_by_id(active_subscription.tariff_id)
+            if tariff:
+                allowed_filters = tariff.filters_count
+                if filters_count > allowed_filters:
+                    filters_to_delete = filters[:filters_count - allowed_filters]
+                    for filter_obj in filters_to_delete:
+                        await db.delete_filter(filter_obj.id)
+                    print(f"Удалены {len(filters_to_delete)} лишних фильтров пользователя {user_id}")
+            else:
+                print(f"Тариф с id={active_subscription.tariff_id} не найден для пользователя {user_id}")
+        else:
+            await db.create_subscription(payhistory.user_id, payhistory.tariff_id, subscription_end=end)
     return {"status": payment_obj.status}
