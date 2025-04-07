@@ -128,8 +128,8 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                 return
 
             manufacture_name_original = car.get('Manufacturer', details.get('category', {}).get('manufacturerName', 'Unknown'))
-            model_name_original = car.get('Model', details.get('category', {}).get('modelName', 'Unknown'))
-            series_name_original = car.get('Badge', details.get('category', {}).get('gradeName', 'Unknown'))
+            model_name_original = car.get('ModelGroup', details.get('category', {}).get('modelName', 'Unknown'))
+            series_name_original = car.get('Model', details.get('category', {}).get('gradeName', 'Unknown'))
             
             manufacture_name_translated = await translate_to_en(manufacture_name_original)
             model_name_translated = await translate_to_en(model_name_original)
@@ -161,7 +161,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                     series = await db.create_series(models_id=car['model_id'], name=series_name_original, translated=series_name_translated)
                 car['series_id'] = series.id
                 
-                equipment_original = ', '.join(details['options']['standard']) if details.get('options', {}).get('standard') else None
+                equipment_original = car.get('Badge')
                 if equipment_original:
                     equipment_translated = await translate_to_ru(equipment_original)
                     equip = await db.get_equipment_by_name(equipment_original)
