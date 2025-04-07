@@ -242,10 +242,12 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                     'all_traffic_accident': accident_data.get('accidentCnt'),
                     'traffic_accident_owner': accident_data.get('myAccidentCnt'),
                     'traffic_accident_other': accident_data.get('otherAccidentCnt'),
+                    'repair_cost_owner': accident_data.get('myAccidentCost'),
+                    'repair_cost_other': accident_data.get('otherAccidentCost'),
                     'theft': 1 if accident_data.get('robberCnt', 0) > 0 else 0,
                     'flood': 1 if accident_data.get('floodTotalLossCnt', 0) > 0 else 0,
                     'death': 1 if accident_data.get('totalLossCnt', 0) > 0 else 0,
-                    'url': f"https://car.encar.com/detail/{car['Id']}"
+                    'url': f"https://fem.encar.com/cars/detail/{car['Id']}"
                 }
                 
                 await db.create_car(**car_data)
