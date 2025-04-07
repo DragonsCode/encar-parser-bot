@@ -12,7 +12,7 @@ class Car(SqlAlchemyBase):
     series_id = Column(BigInteger, ForeignKey("series.id"))
     equipment_id = Column(BigInteger, ForeignKey("equipment.id"))
     engine_type_id = Column(BigInteger, ForeignKey("engine_type.id"))
-    # drive_type_id = Column(BigInteger, ForeignKey("drive_type.id"))
+    drive_type_id = Column(BigInteger, ForeignKey("drive_type.id"))
     car_color_id = Column(BigInteger, ForeignKey("car_color.id"))
     mileage = Column(Integer, default=None)
     price_won = Column(Integer, default=None)
@@ -42,7 +42,7 @@ class Car(SqlAlchemyBase):
             f"series_id={self.series_id}, "
             f"equipment_id={self.equipment_id}, "
             f"engine_type_id={self.engine_type_id}, "
-            # f"drive_type_id={self.drive_type_id}, "
+            f"drive_type_id={self.drive_type_id}, "
             f"car_color_id={self.car_color_id}, "
             f"mileage={self.mileage}, "
             f"price_won={self.price_won}, "

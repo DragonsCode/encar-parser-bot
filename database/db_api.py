@@ -242,7 +242,7 @@ class DBApi(BaseDBApi):
     # Методы для таблицы DriveType (предполагается, что это drive_type)
     async def create_drive_type(self, name: str, translated: str) -> DriveType:
         """Создает новый тип привода."""
-        drive_type = DriveType(name=name)
+        drive_type = DriveType(name=name, translated=translated)
         self._sess.add(drive_type)
         await self._sess.commit()
         return drive_type

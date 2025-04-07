@@ -17,7 +17,7 @@ class FilterCreate(BaseModel):
     series_id: Optional[int] = None
     equipment_id: Optional[int] = None
     engine_type_id: Optional[int] = None
-    # drive_type_id: Optional[int] = None
+    drive_type_id: Optional[int] = None
     car_color_id: Optional[int] = None
     mileage_from: Optional[int] = None
     mileage_defore: Optional[int] = None
@@ -34,7 +34,7 @@ class FilterUpdate(BaseModel):
     series_id: Optional[int] = None
     equipment_id: Optional[int] = None
     engine_type_id: Optional[int] = None
-    # drive_type_id: Optional[int] = None
+    drive_type_id: Optional[int] = None
     car_color_id: Optional[int] = None
     mileage_from: Optional[int] = None
     mileage_defore: Optional[int] = None
@@ -52,7 +52,7 @@ class FilterResponse(BaseModel):
     series_id: Optional[int] = None
     equipment_id: Optional[int] = None
     engine_type_id: Optional[int] = None
-    # drive_type_id: Optional[int] = None
+    drive_type_id: Optional[int] = None
     car_color_id: Optional[int] = None
     mileage_from: Optional[int] = None
     mileage_defore: Optional[int] = None

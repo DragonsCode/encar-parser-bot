@@ -16,6 +16,7 @@ class CarCreate(BaseModel):
     series_id: int
     equipment_id: int
     engine_type_id: int
+    drive_type_id: int
     car_color_id: int
     mileage: Optional[int] = None
     price_won: Optional[int] = None
@@ -41,6 +42,7 @@ class CarUpdate(BaseModel):
     series_id: Optional[int] = None
     equipment_id: Optional[int] = None
     engine_type_id: Optional[int] = None
+    drive_type_id: Optional[int] = None
     car_color_id: Optional[int] = None
     mileage: Optional[int] = None
     price_won: Optional[int] = None
@@ -67,6 +69,7 @@ class CarResponse(BaseModel):
     series_id: Optional[int] = None
     equipment_id: Optional[int] = None
     engine_type_id: Optional[int] = None
+    drive_type_id: Optional[int] = None
     car_color_id: Optional[int] = None
     mileage: Optional[int] = None
     price_won: Optional[int] = None
