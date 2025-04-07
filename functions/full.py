@@ -224,7 +224,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                     check_dttm = datetime.strptime(check_dttm_str, '%Y-%m-%dT%H:%M:%S')
                 
                 car_data = {
-                    'id': car['Id'],
+                    'id': int(car['Id']),
                     'manufacture_id': car['manufacture_id'],
                     'model_id': car['model_id'],
                     'series_id': car['series_id'],
