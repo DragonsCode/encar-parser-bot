@@ -1,6 +1,7 @@
 import asyncio
 from os import getenv
 from openai import AsyncOpenAI
+import openai
 from database import DBApi
 from database.manufacture import Manufacture
 from database.models import Models
@@ -17,7 +18,10 @@ openai_api_key = getenv("OPENAI_API_KEY")
 if not openai_api_key:
     raise ValueError("Не найден API-ключ OpenAI. Установите переменную окружения OPENAI_API_KEY.")
 
-client = AsyncOpenAI(api_key=openai_api_key, base_url="https://api.x.ai/v1")
+# Инициализация клиента OpenAI с прокси
+client = AsyncOpenAI(
+    api_key=openai_api_key,
+)
 
 async def translate_text(text: str, table_name: str) -> str:
     """
@@ -43,7 +47,7 @@ async def translate_text(text: str, table_name: str) -> str:
     
     try:
         response = await client.chat.completions.create(
-            model="grok-2",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a professional translator from Korean to English, specializing in automotive terminology."},
                 {"role": "user", "content": prompt}

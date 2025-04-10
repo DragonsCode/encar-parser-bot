@@ -3,63 +3,29 @@ import aiohttp
 from datetime import datetime
 from database import DBApi
 from os import getenv
-from openai import AsyncOpenAI
-import json
+from deep_translator import GoogleTranslator
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Настройка клиента OpenAI
-openai_api_key = getenv("OPENAI_API_KEY")
-if not openai_api_key:
-    raise ValueError("Не найден API-ключ OpenAI. Установите переменную окружения OPENAI_API_KEY.")
-
-client = AsyncOpenAI(api_key=openai_api_key, base_url="https://api.x.ai/v1")
-
 async def translate_text(text: str, context: str) -> str:
     """
-    Переводит текст с корейского на английский с помощью GPT-4o-mini.
+    Переводит текст с корейского на английский с помощью GoogleTranslator.
     
     Args:
         text: Текст для перевода (на корейском).
-        context: Контекст перевода (например, 'manufacture', 'model', 'drive_type').
+        context: Контекст перевода (не используется в GoogleTranslator, оставлен для совместимости).
     
     Returns:
-        Переведённый текст на английском.
+        Переведённый текст на английском или оригинальный текст при ошибке.
     """
-    prompt = (
-        f"Translate the following text from Korean to English. "
-        f"The text is a name or description related to '{context}' in a car database "
-        f"(e.g., manufacturers, models, series, equipment, etc.). "
-        f"Return the result in JSON format with a 'translated_text' field containing only the translated text. "
-        f"Do not include explanations, comments, or extra characters (e.g., emojis). "
-        f"Example format:\n"
-        f'{{"translated_text": "translated text"}}\n\n'
-        f"Text: {text}"
-    )
-    
     try:
-        response = await client.chat.completions.create(
-            model="grok-2",
-            messages=[
-                {"role": "system", "content": "You are a professional translator from Korean to English, specializing in automotive terminology."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=100,
-            temperature=0.3
-        )
-        
-        response_text = response.choices[0].message.content.strip()
-        result = json.loads(response_text)
-        translated_text = result["translated_text"]
-        return translated_text
-    
-    except (json.JSONDecodeError, KeyError) as e:
-        print(f"Ошибка парсинга JSON-ответа для текста '{text}' (контекст: {context}): {response_text}, ошибка: {e}")
-        raise  # Повторяем запрос или обрабатываем ошибку выше
+        translator = GoogleTranslator(source='ko', target='en')
+        translated_text = translator.translate(text)
+        return translated_text if translated_text else text
     except Exception as e:
         print(f"Ошибка перевода текста '{text}' (контекст: {context}): {e}")
-        raise
+        return text
 
 async def get_exchange_rate():
     """Получает текущий курс обмена KRW к RUB."""
