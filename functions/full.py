@@ -14,7 +14,7 @@ openai_api_key = getenv("OPENAI_API_KEY")
 if not openai_api_key:
     raise ValueError("Не найден API-ключ OpenAI. Установите переменную окружения OPENAI_API_KEY.")
 
-client = AsyncOpenAI(api_key=openai_api_key)
+client = AsyncOpenAI(api_key=openai_api_key, base_url="https://api.x.ai/v1")
 
 async def translate_text(text: str, context: str) -> str:
     """
@@ -40,7 +40,7 @@ async def translate_text(text: str, context: str) -> str:
     
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="grok-2",
             messages=[
                 {"role": "system", "content": "You are a professional translator from Korean to English, specializing in automotive terminology."},
                 {"role": "user", "content": prompt}

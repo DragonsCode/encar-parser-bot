@@ -17,7 +17,7 @@ openai_api_key = getenv("OPENAI_API_KEY")
 if not openai_api_key:
     raise ValueError("Не найден API-ключ OpenAI. Установите переменную окружения OPENAI_API_KEY.")
 
-client = AsyncOpenAI(api_key=openai_api_key)
+client = AsyncOpenAI(api_key=openai_api_key, base_url="https://api.x.ai/v1")
 
 async def translate_text(text: str, table_name: str) -> str:
     """
@@ -43,15 +43,15 @@ async def translate_text(text: str, table_name: str) -> str:
     
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="grok-2",
             messages=[
                 {"role": "system", "content": "You are a professional translator from Korean to English, specializing in automotive terminology."},
                 {"role": "user", "content": prompt}
             ],
+            reasoning_effort="low",
             max_tokens=100,
             temperature=0.3
         )
-        
         response_text = response.choices[0].message.content.strip()
         result = json.loads(response_text)
         translated_text = result["translated_text"]
@@ -68,12 +68,12 @@ async def translate_table_data():
     """Переводит данные в таблицах с корейского на английский с помощью GPT-4o-mini."""
     tables = [
         (Manufacture, "manufacture"),
-        (Models, "models"),
-        (Series, "series"),
-        (Equipment, "equipment"),
-        (EngineType, "engine_type"),
-        (DriveType, "drive_type"),
-        (CarColor, "car_color")
+        # (Models, "models"),
+        # (Series, "series"),
+        # (Equipment, "equipment"),
+        # (EngineType, "engine_type"),
+        # (DriveType, "drive_type"),
+        # (CarColor, "car_color")
     ]
     
     BATCH_SIZE = 50  # Размер пачки для обновления
