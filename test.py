@@ -3,9 +3,7 @@ import logging
 from os import getenv
 from database.db_session import global_init
 from database import DBApi
-from tasks import run_translation
-
-from tasks import check_subscriptions, run_translation
+from tasks.translate import run_translation
 
 
 DB_USER = getenv("DB_USER")
