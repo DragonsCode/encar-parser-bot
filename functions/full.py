@@ -5,6 +5,9 @@ from database import DBApi
 from os import getenv
 from openai import AsyncOpenAI
 import json
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Настройка клиента OpenAI
 openai_api_key = getenv("OPENAI_API_KEY")
