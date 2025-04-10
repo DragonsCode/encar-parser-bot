@@ -2,32 +2,61 @@ import asyncio
 import aiohttp
 from datetime import datetime
 from database import DBApi
-from deep_translator import GoogleTranslator
-import re
+from os import getenv
+from openai import AsyncOpenAI
+import json
 
-# Глобальные объекты переводчиков
-translator_en = GoogleTranslator(source='ko', target='en')  # Корейский → Английский
-translator_ru = GoogleTranslator(source='ko', target='ru')  # Корейский → Русский
+# Настройка клиента OpenAI
+openai_api_key = getenv("OPENAI_API_KEY")
+if not openai_api_key:
+    raise ValueError("Не найден API-ключ OpenAI. Установите переменную окружения OPENAI_API_KEY.")
 
-async def translate_to_en(text: str) -> str:
-    """Переводит текст с корейского на английский."""
-    if text and not all(ord(c) < 128 for c in text):
-        try:
-            return translator_en.translate(text)
-        except Exception as e:
-            print(f"Ошибка перевода на английский '{text}': {e}")
-            return text
-    return text
+client = AsyncOpenAI(api_key=openai_api_key)
 
-async def translate_to_ru(text: str) -> str:
-    """Переводит текст с корейского на русский."""
-    if text and not all(ord(c) < 128 for c in text):
-        try:
-            return translator_ru.translate(text)
-        except Exception as e:
-            print(f"Ошибка перевода на русский '{text}': {e}")
-            return text
-    return text
+async def translate_text(text: str, context: str) -> str:
+    """
+    Переводит текст с корейского на английский с помощью GPT-4o-mini.
+    
+    Args:
+        text: Текст для перевода (на корейском).
+        context: Контекст перевода (например, 'manufacture', 'model', 'drive_type').
+    
+    Returns:
+        Переведённый текст на английском.
+    """
+    prompt = (
+        f"Translate the following text from Korean to English. "
+        f"The text is a name or description related to '{context}' in a car database "
+        f"(e.g., manufacturers, models, series, equipment, etc.). "
+        f"Return the result in JSON format with a 'translated_text' field containing only the translated text. "
+        f"Do not include explanations, comments, or extra characters (e.g., emojis). "
+        f"Example format:\n"
+        f'{{"translated_text": "translated text"}}\n\n'
+        f"Text: {text}"
+    )
+    
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a professional translator from Korean to English, specializing in automotive terminology."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=100,
+            temperature=0.3
+        )
+        
+        response_text = response.choices[0].message.content.strip()
+        result = json.loads(response_text)
+        translated_text = result["translated_text"]
+        return translated_text
+    
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"Ошибка парсинга JSON-ответа для текста '{text}' (контекст: {context}): {response_text}, ошибка: {e}")
+        raise  # Повторяем запрос или обрабатываем ошибку выше
+    except Exception as e:
+        print(f"Ошибка перевода текста '{text}' (контекст: {context}): {e}")
+        raise
 
 async def get_exchange_rate():
     """Получает текущий курс обмена KRW к RUB."""
@@ -120,19 +149,12 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
             model_name_original = car.get('ModelGroup', details.get('category', {}).get('modelName', 'Unknown'))
             series_name_original = car.get('Model', details.get('category', {}).get('gradeName', 'Unknown'))
             
-            manufacture_name_translated = await translate_to_en(manufacture_name_original)
-            model_name_translated = await translate_to_en(model_name_original)
-            series_name_translated = await translate_to_en(series_name_original)
+            manufacture_name_translated = await translate_text(manufacture_name_original, "manufacture")
+            model_name_translated = await translate_text(model_name_original, "model")
+            series_name_translated = await translate_text(series_name_original, "series")
             
             drive_type_original = car.get('Transmission')
-            drive_type_translated = await translate_to_ru(drive_type_original) if drive_type_original else None
-            if drive_type_translated is None and drive_type_original:
-                if drive_type_original == "4WD":
-                    drive_type_translated = "Полный привод"
-                elif drive_type_original == "2WD":
-                    drive_type_translated = "Передний привод"
-                else:
-                    drive_type_translated = drive_type_original
+            drive_type_translated = await translate_text(drive_type_original, "drive_type") if drive_type_original else None
             
             async with DBApi() as db:
                 manufacture = await db.get_manufacture_by_name_and_translated(manufacture_name_original, manufacture_name_translated)
@@ -152,7 +174,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                 
                 equipment_original = car.get('Badge')
                 if equipment_original:
-                    equipment_translated = await translate_to_ru(equipment_original)
+                    equipment_translated = await translate_text(equipment_original, "equipment")
                     equip = await db.get_equipment_by_name_and_translated(equipment_original, equipment_translated, series_id=car['series_id'])
                     if not equip:
                         equip = await db.create_equipment(series_id=car['series_id'], name=equipment_original, translated=equipment_translated)
@@ -162,7 +184,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                 
                 engine_type_original = car.get('FuelType', details.get('spec', {}).get('fuelName'))
                 if engine_type_original:
-                    engine_type_translated = await translate_to_ru(engine_type_original)
+                    engine_type_translated = await translate_text(engine_type_original, "engine_type")
                     eng_type = await db.get_engine_type_by_name_and_translated(engine_type_original, engine_type_translated)
                     if not eng_type:
                         eng_type = await db.create_engine_type(name=engine_type_original, translated=engine_type_translated)
@@ -180,7 +202,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                 
                 car_color_original = car.get('Color', details.get('spec', {}).get('colorName'))
                 if car_color_original:
-                    car_color_translated = await translate_to_ru(car_color_original)
+                    car_color_translated = await translate_text(car_color_original, "car_color")
                     color = await db.get_car_color_by_name_and_translated(car_color_original, car_color_translated)
                     if not color:
                         color = await db.create_car_color(name=car_color_original, translated=car_color_translated)
@@ -191,7 +213,6 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                 price_won = car.get('Price') * 10000
                 price_rub = int(price_won * exchange_rate) if price_won and exchange_rate else None
                 
-                # Безопасная обработка дат
                 year = car.get('Year')
                 year_month = details.get('category', {}).get('yearMonth')
                 date_release = None
