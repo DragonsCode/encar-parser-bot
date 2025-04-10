@@ -11,7 +11,7 @@ translator_ru = GoogleTranslator(source='ko', target='ru')  # Корейский
 
 async def translate_to_en(text: str) -> str:
     """Переводит текст с корейского на английский."""
-    if text and not all(ord(c) < 128 for c in text):  # Проверяем, что текст не на ASCII
+    if text and not all(ord(c) < 128 for c in text):
         try:
             return translator_en.translate(text)
         except Exception as e:
@@ -21,7 +21,7 @@ async def translate_to_en(text: str) -> str:
 
 async def translate_to_ru(text: str) -> str:
     """Переводит текст с корейского на русский."""
-    if text and not all(ord(c) < 128 for c in text):  # Проверяем, что текст не на ASCII
+    if text and not all(ord(c) < 128 for c in text):
         try:
             return translator_ru.translate(text)
         except Exception as e:
@@ -101,17 +101,6 @@ async def parse_accident_summary(car_id: str, vehicle_no: str):
     params = {"vehicleNo": vehicle_no}
     return await fetch_api_data(url, params)
 
-async def extract_drive_type(transmission: str) -> str:
-    """Извлекает тип привода из поля Transmission."""
-    if not transmission:
-        return None
-    trans_lower = transmission.lower()
-    if '4wd' in trans_lower or 'awd' in trans_lower:
-        return '4WD'
-    elif '2wd' in trans_lower or 'fwd' in trans_lower:
-        return '2WD'
-    return None
-
 async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
     """Обрабатывает полную информацию об автомобиле и записывает в БД."""
     async with sem:
@@ -146,17 +135,17 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                     drive_type_translated = drive_type_original
             
             async with DBApi() as db:
-                manufacture = await db.get_manufacture_by_name(manufacture_name_original)
+                manufacture = await db.get_manufacture_by_name_and_translated(manufacture_name_original, manufacture_name_translated)
                 if not manufacture:
                     manufacture = await db.create_manufacture(name=manufacture_name_original, translated=manufacture_name_translated)
                 car['manufacture_id'] = manufacture.id
                 
-                model = await db.get_model_by_name(model_name_original)
+                model = await db.get_model_by_name_and_translated(model_name_original, model_name_translated, manufactures_id=car['manufacture_id'])
                 if not model:
                     model = await db.create_model(manufacture_id=car['manufacture_id'], name=model_name_original, translated=model_name_translated)
                 car['model_id'] = model.id
                 
-                series = await db.get_series_by_name(series_name_original)
+                series = await db.get_series_by_name_and_translated(series_name_original, series_name_translated, models_id=car['model_id'])
                 if not series:
                     series = await db.create_series(models_id=car['model_id'], name=series_name_original, translated=series_name_translated)
                 car['series_id'] = series.id
@@ -164,7 +153,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                 equipment_original = car.get('Badge')
                 if equipment_original:
                     equipment_translated = await translate_to_ru(equipment_original)
-                    equip = await db.get_equipment_by_name(equipment_original)
+                    equip = await db.get_equipment_by_name_and_translated(equipment_original, equipment_translated, series_id=car['series_id'])
                     if not equip:
                         equip = await db.create_equipment(series_id=car['series_id'], name=equipment_original, translated=equipment_translated)
                     car['equipment_id'] = equip.id
@@ -174,7 +163,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                 engine_type_original = car.get('FuelType', details.get('spec', {}).get('fuelName'))
                 if engine_type_original:
                     engine_type_translated = await translate_to_ru(engine_type_original)
-                    eng_type = await db.get_engine_type_by_name(engine_type_original)
+                    eng_type = await db.get_engine_type_by_name_and_translated(engine_type_original, engine_type_translated)
                     if not eng_type:
                         eng_type = await db.create_engine_type(name=engine_type_original, translated=engine_type_translated)
                     car['engine_type_id'] = eng_type.id
@@ -182,7 +171,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                     car['engine_type_id'] = None
                 
                 if drive_type_original:
-                    drv_type = await db.get_drive_type_by_name(drive_type_original)
+                    drv_type = await db.get_drive_type_by_name_and_translated(drive_type_original, drive_type_translated)
                     if not drv_type:
                         drv_type = await db.create_drive_type(name=drive_type_original, translated=drive_type_translated)
                     car['drive_type_id'] = drv_type.id
@@ -192,7 +181,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                 car_color_original = car.get('Color', details.get('spec', {}).get('colorName'))
                 if car_color_original:
                     car_color_translated = await translate_to_ru(car_color_original)
-                    color = await db.get_car_color_by_name(car_color_original)
+                    color = await db.get_car_color_by_name_and_translated(car_color_original, car_color_translated)
                     if not color:
                         color = await db.create_car_color(name=car_color_original, translated=car_color_translated)
                     car['car_color_id'] = color.id
@@ -208,7 +197,7 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                 date_release = None
                 if year or year_month:
                     date_value = year if year else year_month
-                    date_str = str(int(float(date_value)))  # Убираем .0 и преобразуем в строку
+                    date_str = str(int(float(date_value)))
                     date_release = datetime.strptime(date_str, '%Y%m')
                 
                 publication_dttm_raw = details.get('manage', {}).get('firstAdvertisedDateTime')
