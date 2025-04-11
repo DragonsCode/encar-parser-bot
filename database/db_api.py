@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy.future import select
 from sqlalchemy import func
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 from database.base_db_api import BaseDBApi
 from database.car import Car
@@ -214,6 +214,29 @@ class DBApi(BaseDBApi):
             )
         )
         return result.scalars().first()
+    
+    async def get_series_date_range(self, series_id: int) -> Tuple[Optional[datetime], Optional[datetime]]:
+        """
+        Получает минимальную и максимальную даты выпуска автомобилей для указанной серии.
+        
+        Args:
+            series_id: ID серии (series_id из таблицы car).
+        
+        Returns:
+            Кортеж (min_date, max_date), где min_date и max_date — объекты datetime или None,
+            если данных нет.
+        """
+        query = select(
+            func.min(Car.date_release).label('min_date'),
+            func.max(Car.date_release).label('max_date')
+        ).where(Car.series_id == series_id)
+        
+        result = await self._sess.execute(query)
+        row = result.fetchone()
+        
+        if row:
+            return row[0], row[1]  # min_date, max_date
+        return None, None  # Если нет записей для series_id
 
     async def get_series_by_model(self, models_id: int) -> List[Series]:
         """Получает все серии по ID модели."""
