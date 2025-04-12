@@ -22,10 +22,10 @@ async def translate_text(text: str, context: str) -> str:
     try:
         translator = GoogleTranslator(source='ko', target='en')
         translated_text = translator.translate(text)
-        return translated_text if translated_text else text
+        return translated_text.capitalize() if translated_text else text.capitalize()
     except Exception as e:
         print(f"Ошибка перевода текста '{text}' (контекст: {context}): {e}")
-        return text
+        return text.capitalize()
 
 async def get_exchange_rate():
     """Получает текущий курс обмена KRW к RUB."""

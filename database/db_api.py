@@ -98,13 +98,17 @@ class DBApi(BaseDBApi):
     async def get_car_color_by_name_and_translated(self, name: str, translated: str) -> Optional[CarColor]:
         """Получает цвет автомобиля по названию и переводу."""
         result = await self._sess.execute(
-            select(CarColor).where(CarColor.name == name, CarColor.translated == translated)
+            select(CarColor).where(CarColor.name == name)
         )
+        if not result.scalars().first():
+            result = await self._sess.execute(
+                select(CarColor).where(CarColor.translated == translated)
+            )
         return result.scalars().first()
 
     async def get_all_car_colors(self) -> List[CarColor]:
         """Получает все цвета автомобилей."""
-        result = await self._sess.execute(select(CarColor))
+        result = await self._sess.execute(select(CarColor).order_by(CarColor.translated))
         return result.scalars().all()
 
     # Методы для таблицы Manufacture
@@ -133,13 +137,17 @@ class DBApi(BaseDBApi):
     async def get_manufacture_by_name_and_translated(self, name: str, translated: str) -> Optional[Manufacture]:
         """Получает производителя по названию и переводу."""
         result = await self._sess.execute(
-            select(Manufacture).where(Manufacture.name == name, Manufacture.translated == translated)
+            select(Manufacture).where(Manufacture.name == name)
         )
+        if not result.scalars().first():
+            result = await self._sess.execute(
+                select(Manufacture).where(Manufacture.translated == translated)
+            )
         return result.scalars().first()
 
     async def get_all_manufactures(self) -> List[Manufacture]:
         """Получает всех производителей."""
-        result = await self._sess.execute(select(Manufacture))
+        result = await self._sess.execute(select(Manufacture).order_by(Manufacture.translated))
         return result.scalars().all()
 
     # Методы для таблицы Models
@@ -170,15 +178,21 @@ class DBApi(BaseDBApi):
         result = await self._sess.execute(
             select(Models).where(
                 Models.name == name,
-                Models.translated == translated,
                 Models.manufacture_id == manufactures_id
             )
         )
+        if not result.scalars().first():
+            result = await self._sess.execute(
+                select(Models).where(
+                    Models.translated == translated,
+                    Models.manufacture_id == manufactures_id
+                )
+            )
         return result.scalars().first()
 
     async def get_models_by_manufacture(self, manufacture_id: int) -> List[Models]:
         """Получает все модели по ID производителя."""
-        result = await self._sess.execute(select(Models).where(Models.manufacture_id == manufacture_id))
+        result = await self._sess.execute(select(Models).where(Models.manufacture_id == manufacture_id).order_by(Models.translated))
         return result.scalars().all()
 
     # Методы для таблицы Series
@@ -209,10 +223,16 @@ class DBApi(BaseDBApi):
         result = await self._sess.execute(
             select(Series).where(
                 Series.name == name,
-                Series.translated == translated,
                 Series.models_id == models_id
             )
         )
+        if not result.scalars().first():
+            result = await self._sess.execute(
+                select(Series).where(
+                    Series.translated == translated,
+                    Series.models_id == models_id
+                )
+            )
         return result.scalars().first()
     
     async def get_series_date_range(self, series_id: int) -> Tuple[Optional[datetime], Optional[datetime]]:
@@ -240,7 +260,7 @@ class DBApi(BaseDBApi):
 
     async def get_series_by_model(self, models_id: int) -> List[Series]:
         """Получает все серии по ID модели."""
-        result = await self._sess.execute(select(Series).where(Series.models_id == models_id))
+        result = await self._sess.execute(select(Series).where(Series.models_id == models_id).order_by(Series.translated))
         return result.scalars().all()
 
     # Методы для таблицы Equipment
@@ -271,15 +291,21 @@ class DBApi(BaseDBApi):
         result = await self._sess.execute(
             select(Equipment).where(
                 Equipment.name == name,
-                Equipment.translated == translated,
                 Equipment.series_id == series_id
             )
         )
+        if not result.scalars().first():
+            result = await self._sess.execute(
+                select(Equipment).where(
+                    Equipment.translated == translated,
+                    Equipment.series_id == series_id
+                )
+            )
         return result.scalars().first()
 
     async def get_equipment_by_series(self, series_id: int) -> List[Equipment]:
         """Получает все комплектации по ID серии."""
-        result = await self._sess.execute(select(Equipment).where(Equipment.series_id == series_id))
+        result = await self._sess.execute(select(Equipment).where(Equipment.series_id == series_id).order_by(Equipment.translated))
         return result.scalars().all()
 
     # Методы для таблицы EngineType
@@ -308,13 +334,17 @@ class DBApi(BaseDBApi):
     async def get_engine_type_by_name_and_translated(self, name: str, translated: str) -> Optional[EngineType]:
         """Получает тип двигателя по названию и переводу."""
         result = await self._sess.execute(
-            select(EngineType).where(EngineType.name == name, EngineType.translated == translated)
+            select(EngineType).where(EngineType.name == name)
         )
+        if not result.scalars().first():
+            result = await self._sess.execute(
+                select(EngineType).where(EngineType.translated == translated)
+            )
         return result.scalars().first()
 
     async def get_all_engine_types(self) -> List[EngineType]:
         """Получает все типы двигателей."""
-        result = await self._sess.execute(select(EngineType))
+        result = await self._sess.execute(select(EngineType).order_by(EngineType.translated))
         return result.scalars().all()
 
     # Методы для таблицы DriveType
@@ -343,13 +373,17 @@ class DBApi(BaseDBApi):
     async def get_drive_type_by_name_and_translated(self, name: str, translated: str) -> Optional[DriveType]:
         """Получает тип привода по названию и переводу."""
         result = await self._sess.execute(
-            select(DriveType).where(DriveType.name == name, DriveType.translated == translated)
+            select(DriveType).where(DriveType.name == name)
         )
+        if not result.scalars().first():
+            result = await self._sess.execute(
+                select(DriveType).where(DriveType.translated == translated)
+            )
         return result.scalars().first()
 
     async def get_all_drive_types(self) -> List[DriveType]:
         """Получает все типы приводов."""
-        result = await self._sess.execute(select(DriveType))
+        result = await self._sess.execute(select(DriveType).order_by(DriveType.translated))
         return result.scalars().all()
 
     # Методы для таблицы Users
