@@ -47,7 +47,7 @@ async def more_cars_handler(callback_query: CallbackQuery, bot: Bot):
             return
         
         count_db = await db.get_setting_by_key("sent_cars_count")
-        count = count_db.value if count_db else 0
+        count = int(count_db.value) if count_db else 0
         for car in cars:
             if count <= 0:
                 break
@@ -57,7 +57,7 @@ async def more_cars_handler(callback_query: CallbackQuery, bot: Bot):
             series = await db.get_series_by_id(car.series_id)
             update_date = car.update_dttm.strftime("%Y-%m-%d %H:%M")
             date_release = car.date_release.strftime("%Y-%m")
-            
+
             car_data = {
                 "id": car.id,
                 "manufacture": manufacture.translated,

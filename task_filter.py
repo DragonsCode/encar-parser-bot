@@ -28,7 +28,7 @@ async def check_new_cars():
                 new_cars = await db.get_new_cars_by_filter(filter_id, user_id, limit=1)
                 if new_cars:
                     count_db = await db.get_setting_by_key("sent_cars_count")
-                    count = count_db.value if count_db else 0
+                    count = int(count_db.value) if count_db else 0
                     for car in new_cars:
                         if count <= 0:
                             break
@@ -38,7 +38,7 @@ async def check_new_cars():
                         series = await db.get_series_by_id(car.series_id)
                         update_date = car.update_dttm.strftime("%Y-%m-%d %H:%M")
                         date_release = car.date_release.strftime("%Y-%m")
-                        
+
                         car_data = {
                             "id": car.id,
                             "manufacture": manufacture.translated,
