@@ -14,17 +14,17 @@ async def get_bot():
 
 async def send_car_by_filter(user_id: int, filter_id: int, first=True):
     bot = await get_bot()
-    async with DBApi() as db:
-        cars = await db.get_unviewed_cars_by_filter(filter_id, user_id, limit=1)
+    async with DBApi() as db:        
+        count_db = await db.get_setting_by_key("sent_cars_count")
+        count = int(count_db.value) if count_db else 0
+        cars = await db.get_unviewed_cars_by_filter(filter_id, user_id, limit=count)
         if not cars and not first:
             await bot.send_message(user_id, "Все автомобили просмотрены.")
             return
         if not cars:
             return
-        
-        count_db = await db.get_setting_by_key("sent_cars_count")
-        count = int(count_db.value) if count_db else 0
-        print(len(cars))
+        if count > len(cars):
+            count = len(cars)
         for car in cars:
             if count <= 0:
                 break

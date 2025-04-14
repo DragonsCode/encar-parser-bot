@@ -40,14 +40,15 @@ async def more_cars_handler(callback_query: CallbackQuery, bot: Bot):
         if not filter_obj:
             await bot.send_message(user_id, "Фильтр не найден.")
             return
-
-        cars = await db.get_unviewed_cars_by_filter(filter_id, user_id, limit=1)
-        if not cars:
-            await bot.send_message(user_id, "Все автомобили просмотрены.")
-            return
         
         count_db = await db.get_setting_by_key("sent_cars_count")
         count = int(count_db.value) if count_db else 0
+        cars = await db.get_unviewed_cars_by_filter(filter_id, user_id, limit=count)
+        if not cars:
+            await bot.send_message(user_id, "Все автомобили просмотрены.")
+            return
+        if count > len(cars):
+            count = len(cars)
         for car in cars:
             if count <= 0:
                 break

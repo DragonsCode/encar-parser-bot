@@ -24,11 +24,12 @@ async def check_new_cars():
             for filter_obj in filters:
                 user_id = filter_obj.user_id
                 filter_id = filter_obj.id
-
-                new_cars = await db.get_new_cars_by_filter(filter_id, user_id, limit=1)
+                count_db = await db.get_setting_by_key("sent_cars_count")
+                count = int(count_db.value) if count_db else 0
+                new_cars = await db.get_new_cars_by_filter(filter_id, user_id, limit=count)
+                if count > len(new_cars):
+                    count = len(new_cars)
                 if new_cars:
-                    count_db = await db.get_setting_by_key("sent_cars_count")
-                    count = int(count_db.value) if count_db else 0
                     for car in new_cars:
                         if count <= 0:
                             break
