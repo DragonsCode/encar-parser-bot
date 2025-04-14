@@ -24,6 +24,7 @@ async def send_car_by_filter(user_id: int, filter_id: int, first=True):
         
         count_db = await db.get_setting_by_key("sent_cars_count")
         count = int(count_db.value) if count_db else 0
+        print(len(cars))
         for car in cars:
             if count <= 0:
                 break
