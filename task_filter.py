@@ -94,6 +94,7 @@ async def check_new_cars():
                             await bot.send_message(user_id, message_text, parse_mode="HTML")
                         await db.create_viewed_car(user_id, filter_id, car.id)
                         count -= 1
+                        await asyncio.sleep(0.5)
         finally:
             await bot.session.close()
     print("Проверка завершена.")

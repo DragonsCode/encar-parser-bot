@@ -1,4 +1,5 @@
 from aiogram import Bot
+import asyncio
 import aiogram.utils.markdown as fmt
 from database import DBApi
 from tgbot.keyboards.inline import get_more_cars_keyboard
@@ -89,3 +90,4 @@ async def send_car_by_filter(user_id: int, filter_id: int, first=True):
                 await bot.send_message(user_id, message_text, parse_mode="HTML")
             await db.create_viewed_car(user_id, filter_id, car.id)
             count -= 1
+            await asyncio.sleep(0.5)
