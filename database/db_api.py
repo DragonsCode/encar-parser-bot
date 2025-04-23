@@ -1,6 +1,8 @@
 from datetime import datetime
 from sqlalchemy.future import select
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
+from asyncpg.exceptions import UniqueViolationError
 from typing import Optional, List, Tuple
 
 from database.base_db_api import BaseDBApi
@@ -27,9 +29,18 @@ class DBApi(BaseDBApi):
     async def create_car(self, **kwargs) -> Car:
         """Создает новую запись в таблице Car."""
         car = Car(**kwargs)
-        self._sess.add(car)
-        await self._sess.commit()
-        return car
+        try:
+            self._sess.add(car)
+            await self._sess.commit()
+            return car
+        except IntegrityError as e:
+            # Проверяем, вызвана ли ошибка нарушением уникальности
+            if isinstance(e.orig, UniqueViolationError):
+                print("Машина уже существует")
+            else:
+                print(f"Ошибка при создании автомобиля: {e}")
+            await self._sess.rollback()  # Откатываем изменения
+            return None
     
     async def get_all_car_ids(self):
         """Получает все ID автомобилей."""

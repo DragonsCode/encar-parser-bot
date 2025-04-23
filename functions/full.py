@@ -126,24 +126,20 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
             drive_type_translated = await translate_text(drive_type_original, "drive_type") if drive_type_original else None
             
             async with DBApi() as db:
-                print(f"Сессия открыта для автомобиля {car['Id']}")
                 manufacture = await db.get_manufacture_by_name_and_translated(manufacture_name_original, manufacture_name_translated)
                 if not manufacture:
                     manufacture = await db.create_manufacture(name=manufacture_name_original, translated=manufacture_name_translated)
                 car['manufacture_id'] = manufacture.id
-                print(f"Manufacture обработан для автомобиля {car['Id']}")
                 
                 model = await db.get_model_by_name_and_translated(model_name_original, model_name_translated, manufactures_id=car['manufacture_id'])
                 if not model:
                     model = await db.create_model(manufacture_id=car['manufacture_id'], name=model_name_original, translated=model_name_translated)
                 car['model_id'] = model.id
-                print(f"Model обработан для автомобиля {car['Id']}")
                 
                 series = await db.get_series_by_name_and_translated(series_name_original, series_name_translated, models_id=car['model_id'])
                 if not series:
                     series = await db.create_series(models_id=car['model_id'], name=series_name_original, translated=series_name_translated)
                 car['series_id'] = series.id
-                print(f"Series обработан для автомобиля {car['Id']}")
                 
                 equipment_original = car.get('Badge')
                 if equipment_original:
@@ -154,7 +150,6 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                     car['equipment_id'] = equip.id
                 else:
                     car['equipment_id'] = None
-                print(f"Equipment обработан для автомобиля {car['Id']}")
                 
                 engine_type_original = car.get('FuelType', details.get('spec', {}).get('fuelName'))
                 if engine_type_original:
@@ -165,7 +160,6 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                     car['engine_type_id'] = eng_type.id
                 else:
                     car['engine_type_id'] = None
-                print(f"Engine type обработан для автомобиля {car['Id']}")
                 
                 if drive_type_original:
                     drv_type = await db.get_drive_type_by_name_and_translated(drive_type_original, drive_type_translated)
@@ -174,7 +168,6 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                     car['drive_type_id'] = drv_type.id
                 else:
                     car['drive_type_id'] = None
-                print(f"Drive type обработан для автомобиля {car['Id']}")
                 
                 car_color_original = car.get('Color', details.get('spec', {}).get('colorName'))
                 if car_color_original:
@@ -185,7 +178,6 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                     car['car_color_id'] = color.id
                 else:
                     car['car_color_id'] = None
-                print(f"Car color обработан для автомобиля {car['Id']}")
                 
                 price_won = car.get('Price') * 10000
                 price_rub = int(price_won * exchange_rate) if price_won and exchange_rate else None
