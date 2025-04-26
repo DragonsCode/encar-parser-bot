@@ -15,7 +15,7 @@ from database.equipment import Equipment
 from database.engine_type import EngineType
 from database.drive_type import DriveType
 from database.users import Users
-from database.filters import Filters
+from database.filters import Filters, FilterEquipment
 from database.subscription import Subscription
 from database.tariffs import Tariffs
 from database.payhistory import PayHistory
@@ -477,6 +477,33 @@ class DBApi(BaseDBApi):
             return filter_obj
         print(f"Фильтр с id={filter_id} не найден")
         return None
+    
+    async def add_equipment_to_filter(self, filter_id: int, equipment_id: int) -> None:
+        equipment = await self.get_equipment_by_id(equipment_id)
+        if not equipment:
+            raise ValueError(f"Комплектация с ID {equipment_id} не найдена")
+        filter_equipment = FilterEquipment(filter_id=filter_id, equipment_id=equipment_id)
+        self._sess.add(filter_equipment)
+        await self._sess.commit()
+
+    async def remove_equipment_from_filter(self, filter_id: int, equipment_id: int):
+        """Удаляет комплектацию из фильтра."""
+        filter_equipment = (await self._sess.execute(
+            select(FilterEquipment).where(
+                FilterEquipment.filter_id == filter_id,
+                FilterEquipment.equipment_id == equipment_id
+            )
+        )).scalars().first()
+        if filter_equipment:
+            await self._sess.delete(filter_equipment)
+            await self._sess.commit()
+
+    async def get_equipment_ids_by_filter(self, filter_id: int) -> List[int]:
+        """Получает все ID комплектаций для фильтра."""
+        result = await self._sess.execute(
+            select(FilterEquipment.equipment_id).where(FilterEquipment.filter_id == filter_id)
+        )
+        return result.scalars().all()
 
     # Методы для таблицы Subscription
     async def create_subscription(self, user_id: int, tariff_id: int, subscription_end: datetime) -> Subscription:
@@ -808,18 +835,21 @@ class DBApi(BaseDBApi):
         )
         return [row[0] for row in result.fetchall()]
 
-    async def get_unviewed_cars_by_filter(self, filter_id: int, user_id: int, limit: int = 1):
+    async def get_unviewed_cars_by_filter(self, filter_id: int, user_id: int, limit: int = 1) -> List[Car]:
         """Получает непросмотренные автомобили, соответствующие фильтру."""
         filter_obj = await self.get_filter_by_id(filter_id)
         if not filter_obj:
             return []
 
+        equipment_ids = await self.get_equipment_ids_by_filter(filter_id)
+
         query = select(Car).where(
             (Car.manufacture_id == filter_obj.manufacture_id) if filter_obj.manufacture_id else True,
             (Car.model_id == filter_obj.model_id) if filter_obj.model_id else True,
             (Car.series_id == filter_obj.series_id) if filter_obj.series_id else True,
-            (Car.equipment_id == filter_obj.equipment_id) if filter_obj.equipment_id else True,
+            (Car.equipment_id.in_(equipment_ids)) if equipment_ids else True,  # Поддержка нескольких комплектаций
             (Car.engine_type_id == filter_obj.engine_type_id) if filter_obj.engine_type_id else True,
+            (Car.drive_type_id == filter_obj.drive_type_id) if filter_obj.drive_type_id else True,
             (Car.car_color_id == filter_obj.car_color_id) if filter_obj.car_color_id else True,
             (Car.mileage >= filter_obj.mileage_from) if filter_obj.mileage_from else True,
             (Car.mileage <= filter_obj.mileage_defore) if filter_obj.mileage_defore else True,
@@ -837,19 +867,22 @@ class DBApi(BaseDBApi):
         result = await self._sess.execute(query)
         return result.scalars().all()
 
-    async def get_new_cars_by_filter(self, filter_id: int, user_id: int, limit: int = 1):
+    async def get_new_cars_by_filter(self, filter_id: int, user_id: int, limit: int = 1) -> List[Car]:
         """Получает новые автомобили, добавленные после создания фильтра."""
         filter_obj = await self.get_filter_by_id(filter_id)
         if not filter_obj:
             return []
+
+        equipment_ids = await self.get_equipment_ids_by_filter(filter_id)
 
         query = select(Car).where(
             Car.create_dttm > filter_obj.create_dttm,
             (Car.manufacture_id == filter_obj.manufacture_id) if filter_obj.manufacture_id else True,
             (Car.model_id == filter_obj.model_id) if filter_obj.model_id else True,
             (Car.series_id == filter_obj.series_id) if filter_obj.series_id else True,
-            (Car.equipment_id == filter_obj.equipment_id) if filter_obj.equipment_id else True,
+            (Car.equipment_id.in_(equipment_ids)) if equipment_ids else True,  # Поддержка нескольких комплектаций
             (Car.engine_type_id == filter_obj.engine_type_id) if filter_obj.engine_type_id else True,
+            (Car.drive_type_id == filter_obj.drive_type_id) if filter_obj.drive_type_id else True,
             (Car.car_color_id == filter_obj.car_color_id) if filter_obj.car_color_id else True,
             (Car.mileage >= filter_obj.mileage_from) if filter_obj.mileage_from else True,
             (Car.mileage <= filter_obj.mileage_defore) if filter_obj.mileage_defore else True,

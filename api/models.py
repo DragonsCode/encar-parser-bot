@@ -7,7 +7,7 @@ class FilterCreate(BaseModel):
     manufacture_id: Optional[int] = None
     model_id: Optional[int] = None
     series_id: Optional[int] = None
-    equipment_id: Optional[int] = None
+    equipment_ids: List[int] = []  # Список ID комплектаций вместо equipment_id
     engine_type_id: Optional[int] = None
     drive_type_id: Optional[int] = None
     car_color_id: Optional[int] = None
@@ -32,7 +32,7 @@ class FilterResponse(BaseModel):
     manufacture: Optional[str] = None
     model: Optional[str] = None
     series: Optional[str] = None
-    equipment: Optional[str] = None
+    equipment: List[str] = []  # Список названий комплектаций
     engine_type: Optional[str] = None
     drive_type_id: Optional[int] = None
     car_color: Optional[str] = None

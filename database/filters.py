@@ -11,7 +11,7 @@ class Filters(SqlAlchemyBase):
     manufacture_id = Column(BigInteger, ForeignKey("manufacture.id"), default=None)
     model_id = Column(BigInteger, ForeignKey("models.id"), default=None)
     series_id = Column(BigInteger, ForeignKey("series.id"), default=None)
-    equipment_id = Column(BigInteger, ForeignKey("equipment.id"), default=None)
+    # Поле equipment_id удалено
     engine_type_id = Column(BigInteger, ForeignKey("engine_type.id"), default=None)
     drive_type_id = Column(BigInteger, ForeignKey("drive_type.id"), default=None)
     car_color_id = Column(BigInteger, ForeignKey("car_color.id"), default=None)
@@ -43,5 +43,18 @@ class Filters(SqlAlchemyBase):
             f"date_release_defore={self.date_release_defore}, "
             f"create_dttm={self.create_dttm}, "
             f"update_dttm={self.update_dttm}"
+            f")>"
+        )
+
+class FilterEquipment(SqlAlchemyBase):
+    __tablename__ = "filter_equipment"
+    filter_id = Column(BigInteger, ForeignKey("filters.id", ondelete="CASCADE"), primary_key=True)
+    equipment_id = Column(BigInteger, ForeignKey("equipment.id", ondelete="CASCADE"), primary_key=True)
+
+    def __repr__(self):
+        return (
+            f"<{self.__class__.__name__}("
+            f"filter_id={self.filter_id}, "
+            f"equipment_id={self.equipment_id}"
             f")>"
         )
