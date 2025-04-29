@@ -99,6 +99,88 @@ async def parse_accident_summary(car_id: str, vehicle_no: str):
     params = {"vehicleNo": vehicle_no}
     return await fetch_api_data(url, params)
 
+async def normalize_text(text: str) -> str:
+    """Нормализует текст: удаляет лишние пробелы и переводит в нижний регистр для сравнения."""
+    return ' '.join(text.strip().lower().split())
+
+async def process_entity(db: DBApi, entity_type: str, name: str, parent_id: int = None, parent_field: str = None):
+    """
+    Обрабатывает сущность: ищет по имени, если не найдено — переводит и проверяет по имени и переводу.
+    
+    Args:
+        db: Экземпляр DBApi.
+        entity_type: Тип сущности ('manufacture', 'model', 'series', 'equipment', 'engine_type', 'drive_type', 'car_color').
+        name: Оригинальное имя.
+        parent_id: ID родительской сущности (для моделей, серий, комплектаций).
+        parent_field: Поле родительской сущности (например, 'manufacture_id' для моделей).
+    
+    Returns:
+        Объект сущности.
+    """
+    normalized_name = await normalize_text(name)
+    
+    # Сначала ищем по имени
+    if entity_type == 'manufacture':
+        entity = await db.get_manufacture_by_name(normalized_name)
+    elif entity_type == 'model':
+        entity = await db.get_model_by_name(normalized_name)
+    elif entity_type == 'series':
+        entity = await db.get_series_by_name(normalized_name)
+    elif entity_type == 'equipment':
+        entity = await db.get_equipment_by_name(normalized_name)
+    elif entity_type == 'engine_type':
+        entity = await db.get_engine_type_by_name(normalized_name)
+    elif entity_type == 'drive_type':
+        entity = await db.get_drive_type_by_name(normalized_name)
+    elif entity_type == 'car_color':
+        entity = await db.get_car_color_by_name(normalized_name)
+    else:
+        raise ValueError(f"Неизвестный тип сущности: {entity_type}")
+    
+    if entity:
+        return entity
+    
+    # Если не найдено, переводим
+    translated = await translate_text(name, entity_type)
+    normalized_translated = await normalize_text(translated)
+    
+    # Проверяем по имени и переводу
+    if entity_type == 'manufacture':
+        entity = await db.get_manufacture_by_name_and_translated(normalized_name, normalized_translated)
+    elif entity_type == 'model':
+        entity = await db.get_model_by_name_and_translated(normalized_name, normalized_translated, parent_id)
+    elif entity_type == 'series':
+        entity = await db.get_series_by_name_and_translated(normalized_name, normalized_translated, parent_id)
+    elif entity_type == 'equipment':
+        entity = await db.get_equipment_by_name_and_translated(normalized_name, normalized_translated, parent_id)
+    elif entity_type == 'engine_type':
+        entity = await db.get_engine_type_by_name_and_translated(normalized_name, normalized_translated)
+    elif entity_type == 'drive_type':
+        entity = await db.get_drive_type_by_name_and_translated(normalized_name, normalized_translated)
+    elif entity_type == 'car_color':
+        entity = await db.get_car_color_by_name_and_translated(normalized_name, normalized_translated)
+    
+    if entity:
+        return entity
+    
+    # Если не найдено, создаем новую запись
+    if entity_type == 'manufacture':
+        entity = await db.create_manufacture(name=normalized_name, translated=normalized_translated)
+    elif entity_type == 'model':
+        entity = await db.create_model(manufacture_id=parent_id, name=normalized_name, translated=normalized_translated)
+    elif entity_type == 'series':
+        entity = await db.create_series(models_id=parent_id, name=normalized_name, translated=normalized_translated)
+    elif entity_type == 'equipment':
+        entity = await db.create_equipment(series_id=parent_id, name=normalized_name, translated=normalized_translated)
+    elif entity_type == 'engine_type':
+        entity = await db.create_engine_type(name=normalized_name, translated=normalized_translated)
+    elif entity_type == 'drive_type':
+        entity = await db.create_drive_type(name=normalized_name, translated=normalized_translated)
+    elif entity_type == 'car_color':
+        entity = await db.create_car_color(name=normalized_name, translated=normalized_translated)
+    
+    return entity
+
 async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
     """Обрабатывает полную информацию об автомобиле и записывает в БД."""
     async with sem:
@@ -118,64 +200,48 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
             model_name_original = car.get('ModelGroup', details.get('category', {}).get('modelName', 'Unknown'))
             series_name_original = car.get('Model', details.get('category', {}).get('gradeName', 'Unknown'))
             
-            manufacture_name_translated = await translate_text(manufacture_name_original, "manufacture")
-            model_name_translated = await translate_text(model_name_original, "model")
-            series_name_translated = await translate_text(series_name_original, "series")
-            
-            drive_type_original = car.get('Transmission')
-            drive_type_translated = await translate_text(drive_type_original, "drive_type") if drive_type_original else None
-            
             async with DBApi() as db:
-                manufacture = await db.get_manufacture_by_name_and_translated(manufacture_name_original, manufacture_name_translated)
-                if not manufacture:
-                    manufacture = await db.create_manufacture(name=manufacture_name_original, translated=manufacture_name_translated)
+                # Обработка производителя
+                manufacture = await process_entity(db, 'manufacture', manufacture_name_original)
                 car['manufacture_id'] = manufacture.id
                 
-                model = await db.get_model_by_name_and_translated(model_name_original, model_name_translated, manufactures_id=car['manufacture_id'])
-                if not model:
-                    model = await db.create_model(manufacture_id=car['manufacture_id'], name=model_name_original, translated=model_name_translated)
+                # Обработка модели
+                model = await process_entity(db, 'model', model_name_original, parent_id=car['manufacture_id'], parent_field='manufacture_id')
                 car['model_id'] = model.id
                 
-                series = await db.get_series_by_name_and_translated(series_name_original, series_name_translated, models_id=car['model_id'])
-                if not series:
-                    series = await db.create_series(models_id=car['model_id'], name=series_name_original, translated=series_name_translated)
+                # Обработка серии
+                series = await process_entity(db, 'series', series_name_original, parent_id=car['model_id'], parent_field='models_id')
                 car['series_id'] = series.id
                 
+                # Обработка комплектации
                 equipment_original = car.get('Badge')
                 if equipment_original:
-                    equipment_translated = await translate_text(equipment_original, "equipment")
-                    equip = await db.get_equipment_by_name_and_translated(equipment_original, equipment_translated, series_id=car['series_id'])
-                    if not equip:
-                        equip = await db.create_equipment(series_id=car['series_id'], name=equipment_original, translated=equipment_translated)
-                    car['equipment_id'] = equip.id
+                    equipment = await process_entity(db, 'equipment', equipment_original, parent_id=car['series_id'], parent_field='series_id')
+                    car['equipment_id'] = equipment.id
                 else:
                     car['equipment_id'] = None
                 
+                # Обработка типа двигателя
                 engine_type_original = car.get('FuelType', details.get('spec', {}).get('fuelName'))
                 if engine_type_original:
-                    engine_type_translated = await translate_text(engine_type_original, "engine_type")
-                    eng_type = await db.get_engine_type_by_name_and_translated(engine_type_original, engine_type_translated)
-                    if not eng_type:
-                        eng_type = await db.create_engine_type(name=engine_type_original, translated=engine_type_translated)
-                    car['engine_type_id'] = eng_type.id
+                    engine_type = await process_entity(db, 'engine_type', engine_type_original)
+                    car['engine_type_id'] = engine_type.id
                 else:
                     car['engine_type_id'] = None
                 
+                # Обработка типа привода
+                drive_type_original = car.get('Transmission')
                 if drive_type_original:
-                    drv_type = await db.get_drive_type_by_name_and_translated(drive_type_original, drive_type_translated)
-                    if not drv_type:
-                        drv_type = await db.create_drive_type(name=drive_type_original, translated=drive_type_translated)
-                    car['drive_type_id'] = drv_type.id
+                    drive_type = await process_entity(db, 'drive_type', drive_type_original)
+                    car['drive_type_id'] = drive_type.id
                 else:
                     car['drive_type_id'] = None
                 
+                # Обработка цвета автомобиля
                 car_color_original = car.get('Color', details.get('spec', {}).get('colorName'))
                 if car_color_original:
-                    car_color_translated = await translate_text(car_color_original, "car_color")
-                    color = await db.get_car_color_by_name_and_translated(car_color_original, car_color_translated)
-                    if not color:
-                        color = await db.create_car_color(name=car_color_original, translated=car_color_translated)
-                    car['car_color_id'] = color.id
+                    car_color = await process_entity(db, 'car_color', car_color_original)
+                    car['car_color_id'] = car_color.id
                 else:
                     car['car_color_id'] = None
                 
@@ -234,8 +300,6 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                 print(f"Добавлен автомобиль с id={car['Id']}")
         except Exception as e:
             print(f"Ошибка при обработке автомобиля {car['Id']}: {e}")
-            # import traceback
-            # traceback.print_exc()
 
 async def parse_full_car_info(max_pages: int = None):
     """Основная функция для парсинга полной информации об автомобилях."""
