@@ -117,7 +117,7 @@ async def process_entity(db: DBApi, entity_type: str, name: str, parent_id: int 
     Returns:
         Объект сущности.
     """
-    normalized_name = await normalize_text(name)
+    normalized_name = name
     
     # Сначала ищем по имени
     if entity_type == 'manufacture':
