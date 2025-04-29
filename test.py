@@ -4,6 +4,7 @@ from os import getenv
 from database.db_session import global_init
 from database import DBApi
 from tasks.translate import run_translation
+from functions.new_filter import send_car_by_filter
 
 
 DB_USER = getenv("DB_USER")
@@ -25,7 +26,7 @@ async def main():
     )
 
     # test
-    await run_translation()
+    await send_car_by_filter(user_id=235519518, filter_id=28, first=False)
 
 
 if __name__ == "__main__":
