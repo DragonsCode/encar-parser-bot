@@ -23,7 +23,7 @@ async def run_scheduler():
     )
     await run_parser_periodically()  # Вызовите функцию для проверки парсера
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(run_parser_periodically, 'interval', minutes=5)
+    scheduler.add_job(run_parser_periodically, 'interval', minutes=1)
     scheduler.start()
 
     # Держим событийный цикл активным
