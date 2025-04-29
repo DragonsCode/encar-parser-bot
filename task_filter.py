@@ -108,6 +108,7 @@ async def run_scheduler():
         dbname=DB_NAME,
         delete_db=False
     )
+    await check_new_cars()
     scheduler = AsyncIOScheduler()
     scheduler.add_job(check_new_cars, 'interval', minutes=10)
     scheduler.start()
