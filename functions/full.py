@@ -159,6 +159,12 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
             if not accident_data:
                 print(f"Failed to fetch accident history for car {car['Id']}")
                 return
+            
+            async with DBApi() as db:
+                car_exists = await db.get_car_by_id(int(car['Id']))
+                if car_exists:
+                    print(f"Car {car['Id']} already exists, skipping")
+                    return
 
             manufacture_name_original = car.get('Manufacturer', details.get('category', {}).get('manufacturerName', 'Unknown'))
             model_name_original = car.get('ModelGroup', details.get('category', {}).get('modelName', 'Unknown'))
