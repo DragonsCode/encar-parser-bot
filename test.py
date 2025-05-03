@@ -26,7 +26,7 @@ async def main():
     )
 
     # test
-    await send_car_by_filter(user_id=235519518, filter_id=28, first=False)
+    await run_translation()
 
 
 if __name__ == "__main__":

@@ -11,69 +11,82 @@ from database.engine_type import EngineType
 from database.drive_type import DriveType
 from database.car_color import CarColor
 from sqlalchemy import select
+from dotenv import load_dotenv
 import json
+import re
+from openai import AsyncOpenAI
 
-# Настройка клиента OpenAI
-openai_api_key = getenv("OPENAI_API_KEY")
-if not openai_api_key:
-    raise ValueError("Не найден API-ключ OpenAI. Установите переменную окружения OPENAI_API_KEY.")
+load_dotenv()
 
-# Инициализация клиента OpenAI с прокси
+# Initialize OpenAI client for DeepSeek API
+deepseek_api_key = getenv("DEEPSEEK_API_KEY")
+if not deepseek_api_key:
+    raise ValueError("DeepSeek API key not found. Set the DEEPSEEK_API_KEY environment variable.")
+
 client = AsyncOpenAI(
-    api_key=openai_api_key,
+    api_key=deepseek_api_key,
+    base_url="https://api.deepseek.com/v1"
 )
 
-async def translate_text(text: str, table_name: str) -> str:
+async def translate_text(text: str, context: str) -> str:
     """
-    Переводит текст с корейского на английский с помощью GPT-4o-mini.
+    Переводит текст с корейского на английский через DeepSeek API, возвращая только переведённый текст.
     
     Args:
         text: Текст для перевода (на корейском).
-        table_name: Название таблицы, чтобы дать контекст для перевода.
+        context: Контекст перевода (не используется, оставлен для совместимости).
     
     Returns:
-        Переведённый текст на английском.
+        Переведённый текст на английском или исходный текст при ошибке.
     """
-    prompt = (
-        f"Translate the following text from Korean to English. "
-        f"The text is a name or description in the '{table_name}' table, "
-        f"which contains car-related data (e.g., manufacturers, models, series, equipment, etc.). "
-        f"Return the result in JSON format with a 'translated_text' field containing only the translated text. "
-        f"Do not include explanations, comments, or extra characters (e.g., emojis).\n\n"
-        f"Example format:\n"
-        f'{{"translated_text": "translated text"}}\n\n'
-        f"Text: {text}"
-    )
-    
     try:
+        # Нормализация входного текста
+        normalized_text = ' '.join(text.strip().split())
+        if not normalized_text:
+            return text.capitalize()
+        
+        # Запрос перевода через DeepSeek API
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="deepseek-chat",
             messages=[
-                {"role": "system", "content": "You are a professional translator from Korean to English, specializing in automotive terminology."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": "Вы переводчик. Переведите данный корейский текст на английский и верните только переведённый текст в формате JSON с ключом 'translated_text'. Не добавляйте пояснений или лишнего текста."},
+                {"role": "user", "content": normalized_text}
             ],
-            reasoning_effort="low",
             max_tokens=100,
-            temperature=0.3
+            temperature=0.7,
         )
+        
+        # Извлечение содержимого ответа
         response_text = response.choices[0].message.content.strip()
-        result = json.loads(response_text)
-        translated_text = result["translated_text"]
-        return translated_text
-    
-    except (json.JSONDecodeError, KeyError) as e:
-        print(f"Ошибка парсинга JSON-ответа для текста '{text}' (таблица: {table_name}): {response_text}, ошибка: {e}")
-        raise  # Повторяем запрос или обрабатываем ошибку выше
+        
+        # Извлечение JSON из блоков кода, если они есть
+        json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', response_text)
+        if json_match:
+            json_content = json_match.group(1)
+        else:
+            json_content = response_text
+        
+        # Парсинг JSON и извлечение перевода
+        try:
+            translation_data = json.loads(json_content)
+            translated_text = translation_data.get('translated_text', text)
+        except json.JSONDecodeError:
+            print(f"Ошибка парсинга JSON из ответа: {response_text}")
+            translated_text = text
+        
+        # Нормализация и приведение к правильному регистру
+        normalized_translated = ' '.join(translated_text.strip().split())
+        return normalized_translated.capitalize() if normalized_translated else text.capitalize()
     except Exception as e:
-        print(f"Ошибка перевода текста '{text}' (таблица: {table_name}): {e}")
-        raise
+        print(f"Ошибка перевода текста '{text}' (контекст: {context}): {e}")
+        return text.capitalize()
 
 async def translate_table_data():
     """Переводит данные в таблицах с корейского на английский с помощью GPT-4o-mini."""
     tables = [
-        (Manufacture, "manufacture"),
+        # (Manufacture, "manufacture"),
         # (Models, "models"),
-        # (Series, "series"),
+        (Series, "series"),
         # (Equipment, "equipment"),
         # (EngineType, "engine_type"),
         # (DriveType, "drive_type"),
