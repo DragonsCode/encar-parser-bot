@@ -302,7 +302,7 @@ async def parse_full_car_info(max_pages: int = None):
             new_cars = [car for car in page_cars if car['Id'] not in existing_ids]
             print(f"Found {len(new_cars)} new cars out of {len(page_cars)} on page")
             
-            sem = asyncio.Semaphore(5)
+            sem = asyncio.Semaphore(20)
             tasks = [fetch_car_full_info(car, exchange_rate, sem) for car in new_cars]
             await asyncio.gather(*tasks, return_exceptions=True)
             
