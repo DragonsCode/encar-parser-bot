@@ -96,7 +96,7 @@ async def fetch_api_data(url: str, params: dict = None, headers: dict = None):
             "Host": "api.encar.com",
             "Origin": "https://car.encar.com",
             "Referer": "https://car.encar.com/",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
         }
     async with aiohttp.ClientSession() as session:
         async with session.get(url, params=params, headers=headers) as response:
