@@ -86,6 +86,18 @@ async def get_exchange_rate():
 
 async def fetch_api_data(url: str, params: dict = None, headers: dict = None):
     """Fetches data from an API."""
+    if not headers:
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Connection": "keep-alive",
+            "DNT": "1",
+            "Host": "api.encar.com",
+            "Origin": "https://car.encar.com",
+            "Referer": "https://car.encar.com/",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0"
+        }
     async with aiohttp.ClientSession() as session:
         async with session.get(url, params=params, headers=headers) as response:
             if response.status == 200:
