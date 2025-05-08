@@ -84,10 +84,10 @@ async def get_exchange_rate():
                 print(f"Error fetching exchange rate: {response.status}")
                 return None
 
-async def fetch_api_data(url: str, params: dict = None):
+async def fetch_api_data(url: str, params: dict = None, headers: dict = None):
     """Fetches data from an API."""
     async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params) as response:
+        async with session.get(url, params=params, headers=headers) as response:
             if response.status == 200:
                 return await response.json()
             else:
@@ -116,10 +116,16 @@ async def parse_cars(car_type: str, max_pages: int = None):
             "count": "true",
             "q": q,
             "sr": f"|MobileModifiedDate|{offset}|{page_size}",
-            "inav": "|Metadata|Sort"
+            "inav": "|Metadata|Sort",
+            "cursor": ""
+        }
+        headers = {
+            "Origin": "https://car.encar.com",
+            "Referer": "https://car.encar.com/",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0"
         }
         
-        data = await fetch_api_data(base_url, params)
+        data = await fetch_api_data(base_url, params, headers)
         if not data or 'SearchResults' not in data or not data['SearchResults']:
             print(f"Page {page_num} has no cars, ending {car_type} parsing.")
             break
