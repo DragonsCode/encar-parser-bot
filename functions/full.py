@@ -120,6 +120,12 @@ async def parse_cars(car_type: str, max_pages: int = None):
             "cursor": ""
         }
         headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Connection": "keep-alive",
+            "DNT": "1",
+            "Host": "api.encar.com",
             "Origin": "https://car.encar.com",
             "Referer": "https://car.encar.com/",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0"
