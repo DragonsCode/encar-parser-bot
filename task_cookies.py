@@ -29,6 +29,7 @@ async def refresh_cookies():
 async def run_scheduler():
     """Запускает планировщик для периодического обновления cookies."""
     scheduler = AsyncIOScheduler()
+    await refresh_cookies()  # Первоначальный запуск для получения cookies
     scheduler.add_job(refresh_cookies, 'interval', hours=5)
     scheduler.start()
 
