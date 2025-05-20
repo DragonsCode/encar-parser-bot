@@ -81,7 +81,7 @@ async def load_cookies():
 async def fetch_api_data(url: str, params: dict = None, headers: dict = None):
     """Получает данные из API с использованием aiohttp и куки."""
     cookies = await load_cookies()
-    cookies_dict = {cookie.name: cookie.value for cookie in cookies} if cookies else {}
+    cookies_dict = {cookie.name: cookie.value for cookie in cookies}
     if not headers:
         headers = {
             "Accept": "application/json, text/plain, */*",
