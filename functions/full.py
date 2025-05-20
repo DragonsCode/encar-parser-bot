@@ -81,7 +81,7 @@ async def load_cookies():
 async def fetch_api_data(url: str, params: dict = None, headers: dict = None):
     """Получает данные из API с использованием aiohttp и куки."""
     cookies = await load_cookies()
-    cookies_dict = {cookie.name: cookie.value for cookie in cookies}
+    cookies_dict = {cookie.name: cookie.value for cookie in cookies} if cookies else {}
     if not headers:
         headers = {
             "Accept": "application/json, text/plain, */*",
@@ -89,24 +89,18 @@ async def fetch_api_data(url: str, params: dict = None, headers: dict = None):
             "Referer": "https://car.encar.com/",
             "User-Agent": USER_AGENT
         }
-    response = requests.get(url, params=params, headers=headers, cookies=cookies_dict)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        print(f"Ошибка при запросе {url}: {response.status_code}")
-        return None
-    # async with aiohttp.ClientSession(cookies=cookies_dict) as session:
-    #     async with session.get(url, params=params, headers=headers) as response:
-    #         if response.status == 200:
-    #             return await response.json()
-    #         else:
-    #             print(f"Ошибка при запросе {url}: {response.status}")
-    #             return None
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, params=params, headers=headers) as response:
+            if response.status == 200:
+                return await response.json()
+            else:
+                print(f"Ошибка при запросе {url}: {response.status}")
+                return None
 
 async def get_exchange_rate():
     """Получает текущий курс обмена KRW на RUB."""
     url = 'https://api.exchangerate-api.com/v4/latest/KRW'
-    data = requests.get(url).json()
+    data = await fetch_api_data(url)
     if data:
         return data['rates']['RUB']
     else:
@@ -138,8 +132,9 @@ async def parse_cars(car_type: str, max_pages: int = None):
             "inav": "|Metadata|Sort",
             "cursor": ""
         }
+        url = f"https://api.encar.com/search/car/list/mobile?count=true&q={q}&sr=%7CMobileModifiedDate%7C{offset}%7C{page_size}"
         
-        data = await fetch_api_data(base_url, params)
+        data = await fetch_api_data(url)
         if not data or 'SearchResults' not in data or not data['SearchResults']:
             print(f"Страница {page_num} не содержит машин, завершаем парсинг {car_type}.")
             break

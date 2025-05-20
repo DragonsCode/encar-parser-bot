@@ -4,6 +4,7 @@ import requests
 import pickle
 import json
 import random
+import bs4
 import os
 import zendriver as zd
 from zendriver import Tab, Browser, Element
@@ -50,9 +51,18 @@ async def get_browser():
     """Запускает браузер, получает cookies и сохраняет их."""
     browser = await zd.start(headless=True, user_agent=USER_AGENT)
     page = await browser.get('https://car.encar.com/list/car?page=1&search=%7B%22type%22%3A%22ev%22%2C%22action%22%3A%22(And.Hidden.N._.CarType.A._.GreenType.Y.)%22%2C%22title%22%3A%22%EC%A0%84%EA%B8%B0%C2%B7%EC%B9%9C%ED%99%98%EA%B2%BD%22%2C%22toggle%22%3A%7B%7D%2C%22layer%22%3A%22%22%2C%22sort%22%3A%22MobileModifiedDate%22%7D')
-    await page.wait(30)
+    await page.wait(20)
     await save_cookies(browser)
+    await page.get("https://api.encar.com/search/car/list/mobile?count=true&q=(And.Hidden.N._.CarType.A._.GreenType.Y.)&sr=%7CMobileModifiedDate%7C200%7C200")
+    text = await page.get_content()
+    soup = bs4.BeautifulSoup(text, "html.parser")
+    text = soup.text
+    print(text)
+    data = json.loads(text)
+    print(f"Получено {len(data['SearchResults'])} машин.")
+    await page.wait(20)
     await browser.stop()
+    return data
 
 async def fetch_api_data(url: str, params: dict = None, retries: int = 3):
     """Получает данные из API с использованием cookies и повторными попытками."""
@@ -141,7 +151,7 @@ async def main():
 
 async def test():
     """Тестирует сохранение и загрузку cookies, а также запрос через requests."""
-    await get_browser()
+    # await get_browser()
     print("Cookies успешно сохранены.")
 
     cookies = await load_cookies()
@@ -150,6 +160,10 @@ async def test():
         # Преобразуем cookies в формат для requests
         cookies_dict = {cookie.name: cookie.value for cookie in cookies}
         url = "https://api.encar.com/search/car/list/mobile"
+        offset = 200
+        page_size = 200
+        q = "(And.Hidden.N._.CarType.A._.GreenType.Y.)"
+        url = f"https://api.encar.com/search/car/list/mobile?count=true&q={q}&sr=%7CMobileModifiedDate%7C{offset}%7C{page_size}"
         params = {
             "count": "true",
             "q": "(And.Hidden.N._.CarType.A._.GreenType.Y.)",
@@ -158,7 +172,7 @@ async def test():
             "cursor": ""
         }
         headers = get_random_headers()
-        response = requests.get(url, params=params, headers=headers, cookies=cookies_dict)
+        response = requests.get(url, headers=headers)
         print(f"Статус запроса: {response.status_code}")
         if response.status_code == 200:
             print("Запрос через requests успешен.")
