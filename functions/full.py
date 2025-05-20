@@ -1,5 +1,6 @@
 import asyncio
 import aiohttp
+import requests
 import json
 import re
 import pickle
@@ -88,18 +89,24 @@ async def fetch_api_data(url: str, params: dict = None, headers: dict = None):
             "Referer": "https://car.encar.com/",
             "User-Agent": USER_AGENT
         }
-    async with aiohttp.ClientSession(cookies=cookies_dict) as session:
-        async with session.get(url, params=params, headers=headers) as response:
-            if response.status == 200:
-                return await response.json()
-            else:
-                print(f"Ошибка при запросе {url}: {response.status}")
-                return None
+    response = requests.get(url, params=params, headers=headers, cookies=cookies_dict)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Ошибка при запросе {url}: {response.status_code}")
+        return None
+    # async with aiohttp.ClientSession(cookies=cookies_dict) as session:
+    #     async with session.get(url, params=params, headers=headers) as response:
+    #         if response.status == 200:
+    #             return await response.json()
+    #         else:
+    #             print(f"Ошибка при запросе {url}: {response.status}")
+    #             return None
 
 async def get_exchange_rate():
     """Получает текущий курс обмена KRW на RUB."""
     url = 'https://api.exchangerate-api.com/v4/latest/KRW'
-    data = await fetch_api_data(url)
+    data = requests.get(url).json()
     if data:
         return data['rates']['RUB']
     else:

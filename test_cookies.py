@@ -48,7 +48,7 @@ async def load_cookies():
 
 async def get_browser():
     """Запускает браузер, получает cookies и сохраняет их."""
-    browser = await zd.start(headless=False, user_agent=USER_AGENT)
+    browser = await zd.start(headless=True, user_agent=USER_AGENT)
     page = await browser.get('https://car.encar.com/list/car?page=1&search=%7B%22type%22%3A%22ev%22%2C%22action%22%3A%22(And.Hidden.N._.CarType.A._.GreenType.Y.)%22%2C%22title%22%3A%22%EC%A0%84%EA%B8%B0%C2%B7%EC%B9%9C%ED%99%98%EA%B2%BD%22%2C%22toggle%22%3A%7B%7D%2C%22layer%22%3A%22%22%2C%22sort%22%3A%22MobileModifiedDate%22%7D')
     await page.wait(30)
     await save_cookies(browser)
@@ -141,7 +141,7 @@ async def main():
 
 async def test():
     """Тестирует сохранение и загрузку cookies, а также запрос через requests."""
-    # await get_browser()
+    await get_browser()
     print("Cookies успешно сохранены.")
 
     cookies = await load_cookies()
