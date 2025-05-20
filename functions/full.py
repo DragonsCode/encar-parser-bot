@@ -2,6 +2,8 @@ import asyncio
 import aiohttp
 import json
 import re
+import pickle
+import os
 from datetime import datetime
 from database import DBApi
 from os import getenv
@@ -10,7 +12,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Initialize OpenAI client for DeepSeek API
+# Инициализация клиента OpenAI для DeepSeek API
 deepseek_api_key = getenv("DEEPSEEK_API_KEY")
 if not deepseek_api_key:
     raise ValueError("DeepSeek API key not found. Set the DEEPSEEK_API_KEY environment variable.")
@@ -19,6 +21,9 @@ client = AsyncOpenAI(
     api_key=deepseek_api_key,
     base_url="https://api.deepseek.com/v1"
 )
+
+# Единый User-Agent для согласованности с браузером
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0"
 
 async def translate_text(text: str, context: str) -> str:
     """
@@ -32,12 +37,10 @@ async def translate_text(text: str, context: str) -> str:
         Переведённый текст на английском или исходный текст при ошибке.
     """
     try:
-        # Нормализация входного текста
         normalized_text = ' '.join(text.strip().split())
         if not normalized_text:
             return text.capitalize()
         
-        # Запрос перевода через DeepSeek API
         response = await client.chat.completions.create(
             model="deepseek-chat",
             messages=[
@@ -48,17 +51,10 @@ async def translate_text(text: str, context: str) -> str:
             temperature=0.7,
         )
         
-        # Извлечение содержимого ответа
         response_text = response.choices[0].message.content.strip()
-        
-        # Извлечение JSON из блоков кода, если они есть
         json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', response_text)
-        if json_match:
-            json_content = json_match.group(1)
-        else:
-            json_content = response_text
+        json_content = json_match.group(1) if json_match else response_text
         
-        # Парсинг JSON и извлечение перевода
         try:
             translation_data = json.loads(json_content)
             translated_text = translation_data.get('translated_text', text)
@@ -66,55 +62,59 @@ async def translate_text(text: str, context: str) -> str:
             print(f"Ошибка парсинга JSON из ответа: {response_text}")
             translated_text = text
         
-        # Нормализация и приведение к правильному регистру
         normalized_translated = ' '.join(translated_text.strip().split())
         return normalized_translated.capitalize() if normalized_translated else text.capitalize()
     except Exception as e:
         print(f"Ошибка перевода текста '{text}' (контекст: {context}): {e}")
         return text.capitalize()
 
-async def get_exchange_rate():
-    """Fetches the current KRW to RUB exchange rate."""
-    async with aiohttp.ClientSession() as session:
-        async with session.get('https://api.exchangerate-api.com/v4/latest/KRW') as response:
-            if response.status == 200:
-                data = await response.json()
-                return data['rates']['RUB']
-            else:
-                print(f"Error fetching exchange rate: {response.status}")
-                return None
+async def load_cookies():
+    """Загружает куки из файла."""
+    cookie_file = "cookies/encar_cookies.dat"
+    if os.path.exists(cookie_file):
+        with open(cookie_file, "rb") as f:
+            cookies = pickle.load(f)
+        return cookies
+    return None
 
 async def fetch_api_data(url: str, params: dict = None, headers: dict = None):
-    """Fetches data from an API."""
+    """Получает данные из API с использованием aiohttp и куки."""
+    cookies = await load_cookies()
+    cookies_dict = {cookie.name: cookie.value for cookie in cookies} if cookies else {}
     if not headers:
         headers = {
             "Accept": "application/json, text/plain, */*",
-            "Accept-Encoding": "gzip, deflate, br, zstd",
             "Accept-Language": "en-US,en;q=0.5",
-            "Connection": "keep-alive",
-            "DNT": "1",
-            "Host": "api.encar.com",
-            "Origin": "https://car.encar.com",
             "Referer": "https://car.encar.com/",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
+            "User-Agent": USER_AGENT
         }
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(cookies=cookies_dict) as session:
         async with session.get(url, params=params, headers=headers) as response:
             if response.status == 200:
                 return await response.json()
             else:
-                print(f"Error fetching {url}: {response.status}")
+                print(f"Ошибка при запросе {url}: {response.status}")
                 return None
 
+async def get_exchange_rate():
+    """Получает текущий курс обмена KRW на RUB."""
+    url = 'https://api.exchangerate-api.com/v4/latest/KRW'
+    data = await fetch_api_data(url)
+    if data:
+        return data['rates']['RUB']
+    else:
+        print("Не удалось получить курс обмена.")
+        return None
+
 async def parse_cars(car_type: str, max_pages: int = None):
-    """Generator yielding cars page-by-page from the API."""
+    """Генератор, возвращающий машины постранично из API."""
     base_url = "https://api.encar.com/search/car/list/mobile"
     if car_type == 'kor':
         q = "(And.Hidden.N._.CarType.A.)"
     elif car_type == 'ev':
         q = "(And.Hidden.N._.CarType.A._.GreenType.Y.)"
     else:
-        raise ValueError("Invalid car_type. Use 'kor' or 'ev'.")
+        raise ValueError("Неверный car_type. Используйте 'kor' или 'ev'.")
     
     page_size = 200
     offset = 0
@@ -131,25 +131,14 @@ async def parse_cars(car_type: str, max_pages: int = None):
             "inav": "|Metadata|Sort",
             "cursor": ""
         }
-        headers = {
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Encoding": "gzip, deflate, br, zstd",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Connection": "keep-alive",
-            "DNT": "1",
-            "Host": "api.encar.com",
-            "Origin": "https://car.encar.com",
-            "Referer": "https://car.encar.com/",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0"
-        }
         
-        data = await fetch_api_data(base_url, params, headers)
+        data = await fetch_api_data(base_url, params)
         if not data or 'SearchResults' not in data or not data['SearchResults']:
-            print(f"Page {page_num} has no cars, ending {car_type} parsing.")
+            print(f"Страница {page_num} не содержит машин, завершаем парсинг {car_type}.")
             break
         
         total_count = data.get('Count', 0)
-        print(f"Page {page_num}: found {len(data['SearchResults'])} cars, total available {total_count}")
+        print(f"Страница {page_num}: найдено {len(data['SearchResults'])} машин, всего доступно {total_count}")
         
         yield data['SearchResults']
         
@@ -158,36 +147,36 @@ async def parse_cars(car_type: str, max_pages: int = None):
         await asyncio.sleep(1)
 
 async def parse_car_details(car_id: str):
-    """Fetches detailed car information from the API."""
+    """Получает подробную информацию о машине из API."""
     url = f"https://api.encar.com/v1/readside/vehicle/{car_id}"
     params = {"include": "ADVERTISEMENT,CATEGORY,CONDITION,CONTACT,MANAGE,OPTIONS,PHOTOS,SPEC,PARTNERSHIP,CENTER,VIEW"}
     return await fetch_api_data(url, params)
 
 async def parse_accident_summary(car_id: str, vehicle_no: str):
-    """Fetches insurance history for a car from the API."""
+    """Получает историю страхования машины из API."""
     url = f"https://api.encar.com/v1/readside/record/vehicle/{car_id}/open"
     params = {"vehicleNo": vehicle_no}
     return await fetch_api_data(url, params)
 
 async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
-    """Processes full car info and saves it to the database."""
+    """Обрабатывает полную информацию о машине и сохраняет в базу данных."""
     async with sem:
         try:
-            print(f"Processing car {car['Id']}")
+            print(f"Обработка машины {car['Id']}")
             details = await parse_car_details(car['Id'])
             if not details or 'vehicleNo' not in details:
-                print(f"Failed to fetch details for car {car['Id']}")
+                print(f"Не удалось получить детали для машины {car['Id']}")
                 return
             
             accident_data = await parse_accident_summary(car['Id'], details['vehicleNo'])
             if not accident_data:
-                print(f"Failed to fetch accident history for car {car['Id']}")
+                print(f"Не удалось получить историю аварий для машины {car['Id']}")
                 return
             
             async with DBApi() as db:
                 car_exists = await db.get_car_by_id(int(car['Id']))
                 if car_exists:
-                    print(f"Car {car['Id']} already exists, skipping")
+                    print(f"Машина {car['Id']} уже существует, пропускаем")
                     return
 
             manufacture_name_original = car.get('Manufacturer', details.get('category', {}).get('manufacturerName', 'Unknown'))
@@ -305,26 +294,26 @@ async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
                     'url': f"https://fem.encar.com/cars/detail/{car['Id']}"
                 }
                 
-                print(f"Saving car {car['Id']} to database")
+                print(f"Сохранение машины {car['Id']} в базу данных")
                 await db.create_car(**car_data)
-                print(f"Added car with id={car['Id']}")
+                print(f"Добавлена машина с id={car['Id']}")
         except Exception as e:
-            print(f"Error processing car {car['Id']}: {e}")
+            print(f"Ошибка обработки машины {car['Id']}: {e}")
 
 async def parse_full_car_info(max_pages: int = None):
-    """Main function to parse full car information."""
+    """Основная функция для парсинга полной информации о машинах."""
     exchange_rate = await get_exchange_rate()
     if not exchange_rate:
-        print("Failed to fetch exchange rate, exiting.")
+        print("Не удалось получить курс обмена, завершение.")
         return
     
     for car_type in ['kor', 'ev']:
-        print(f"Parsing cars of type '{car_type}'...")
+        print(f"Парсинг машин типа '{car_type}'...")
         async for page_cars in parse_cars(car_type, max_pages):
             async with DBApi() as db_temp:
                 existing_ids = set(await db_temp.get_all_car_ids())
             new_cars = [car for car in page_cars if car['Id'] not in existing_ids]
-            print(f"Found {len(new_cars)} new cars out of {len(page_cars)} on page")
+            print(f"Найдено {len(new_cars)} новых машин из {len(page_cars)} на странице")
             
             sem = asyncio.Semaphore(20)
             tasks = [fetch_car_full_info(car, exchange_rate, sem) for car in new_cars]
@@ -334,7 +323,7 @@ async def parse_full_car_info(max_pages: int = None):
             del new_cars
             await asyncio.sleep(1)
     
-    print("Parsing completed.")
+    print("Парсинг завершён.")
 
 if __name__ == "__main__":
     asyncio.run(parse_full_car_info())
