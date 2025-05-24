@@ -1,11 +1,11 @@
 import asyncio
-import aiohttp
-import requests
 import json
 import re
-import pickle
-import os
 from datetime import datetime
+import bs4
+import zendriver as zd
+import urllib
+import aiohttp
 from database import DBApi
 from os import getenv
 from openai import AsyncOpenAI
@@ -23,20 +23,11 @@ client = AsyncOpenAI(
     base_url="https://api.deepseek.com/v1"
 )
 
-# Единый User-Agent для согласованности с браузером
+# Единый User-Agent для согласованности
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0"
 
 async def translate_text(text: str, context: str) -> str:
-    """
-    Переводит текст с корейского на английский через DeepSeek API, возвращая только переведённый текст.
-    
-    Args:
-        text: Текст для перевода (на корейском).
-        context: Контекст перевода (не используется, оставлен для совместимости).
-    
-    Returns:
-        Переведённый текст на английском или исходный текст при ошибке.
-    """
+    """Переводит текст с корейского на английский через DeepSeek API."""
     try:
         normalized_text = ' '.join(text.strip().split())
         if not normalized_text:
@@ -69,46 +60,33 @@ async def translate_text(text: str, context: str) -> str:
         print(f"Ошибка перевода текста '{text}' (контекст: {context}): {e}")
         return text.capitalize()
 
-async def load_cookies():
-    """Загружает куки из файла."""
-    cookie_file = "cookies/encar_cookies.dat"
-    if os.path.exists(cookie_file):
-        with open(cookie_file, "rb") as f:
-            cookies = pickle.load(f)
-        return cookies
-    return None
-
-async def fetch_api_data(url: str, params: dict = None, headers: dict = None):
-    """Получает данные из API с использованием aiohttp и куки."""
-    cookies = await load_cookies()
-    cookies_dict = {cookie.name: cookie.value for cookie in cookies} if cookies else {}
-    if not headers:
-        headers = {
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Referer": "https://car.encar.com/",
-            "User-Agent": USER_AGENT
-        }
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params, headers=headers) as response:
-            if response.status == 200:
-                return await response.json()
-            else:
-                print(f"Ошибка при запросе {url}: {response.status}")
-                return None
+async def fetch_api_data(page: zd.Tab, url: str):
+    """Получает данные из API через браузер."""
+    await page.get(url)
+    await page.wait(5)  # Ждём полной загрузки ответа API
+    text = await page.get_content()
+    soup = bs4.BeautifulSoup(text, "html.parser")
+    try:
+        data = json.loads(soup.text)
+        print(f"Запрос к {url}: получено {len(data.get('SearchResults', []))} машин.")
+        return data
+    except json.JSONDecodeError:
+        print(f"Ошибка парсинга JSON из ответа: {soup.text}")
+        return None
 
 async def get_exchange_rate():
     """Получает текущий курс обмена KRW на RUB."""
-    url = 'https://api.exchangerate-api.com/v4/latest/KRW'
-    data = await fetch_api_data(url)
-    if data:
-        return data['rates']['RUB']
-    else:
-        print("Не удалось получить курс обмена.")
-        return None
+    async with aiohttp.ClientSession() as session:
+        async with session.get('https://api.exchangerate-api.com/v4/latest/KRW') as response:
+            if response.status == 200:
+                data = await response.json()
+                return data['rates']['RUB']
+            else:
+                print(f"Ошибка получения курса обмена: {response.status}")
+                return None
 
 async def parse_cars(car_type: str, max_pages: int = None):
-    """Генератор, возвращающий машины постранично из API."""
+    """Генератор, возвращающий машины постранично из API через браузер."""
     base_url = "https://api.encar.com/search/car/list/mobile"
     if car_type == 'kor':
         q = "(And.Hidden.N._.CarType.A.)"
@@ -121,56 +99,67 @@ async def parse_cars(car_type: str, max_pages: int = None):
     offset = 0
     page_num = 1
     
-    while True:
-        if max_pages and page_num > max_pages:
-            break
-        
-        params = {
-            "count": "true",
-            "q": q,
-            "sr": f"|MobileModifiedDate|{offset}|{page_size}",
-            "inav": "|Metadata|Sort",
-            "cursor": ""
-        }
-        url = f"https://api.encar.com/search/car/list/mobile?count=true&q={q}&sr=%7CMobileModifiedDate%7C{offset}%7C{page_size}"
-        
-        data = await fetch_api_data(url)
-        if not data or 'SearchResults' not in data or not data['SearchResults']:
-            print(f"Страница {page_num} не содержит машин, завершаем парсинг {car_type}.")
-            break
-        
-        total_count = data.get('Count', 0)
-        print(f"Страница {page_num}: найдено {len(data['SearchResults'])} машин, всего доступно {total_count}")
-        
-        yield data['SearchResults']
-        
-        offset += page_size
-        page_num += 1
-        await asyncio.sleep(1)
+    browser = await zd.start(headless=True, user_agent=USER_AGENT)
+    page = await browser.get('https://car.encar.com/list/car?page=1&search=%7B%22type%22%3A%22ev%22%2C%22action%22%3A%22(And.Hidden.N._.CarType.A._.GreenType.Y.)%22%2C%22title%22%3A%22%EC%A0%84%EA%B8%B0%C2%B7%EC%B9%9C%ED%99%98%EA%B2%BD%22%2C%22toggle%22%3A%7B%7D%2C%22layer%22%3A%22%22%2C%22sort%22%3A%22MobileModifiedDate%22%7D')
+    await page.wait(20)  # Ждём полной загрузки страницы и API-запросов
+    
+    # Загружаем главную страницу для инициализации сессии
+    # await page.get('https://car.encar.com/list/car?page=1&search=%7B%22type%22%3A%22ev%22%2C%22action%22%3A%22(And.Hidden.N._.CarType.A._.GreenType.Y.)%22%2C%22title%22%3A%22%EC%A0%84%EA%B8%B0%C2%B7%EC%B9%9C%ED%99%98%EA%B2%BD%22%2C%22toggle%22%3A%7B%7D%2C%22layer%22%3A%22%22%2C%22sort%22%3A%22MobileModifiedDate%22%7D')
+    # await page.wait(20)  # Ждём полной загрузки страницы и API-запросов
+    
+    try:
+        while True:
+            if max_pages and page_num > max_pages:
+                break
+            
+            # Формируем закодированный URL для API
+            params = {
+                "count": "true",
+                "q": q,
+                "sr": f"|MobileModifiedDate|{offset}|{page_size}",
+                "inav": "|Metadata|Sort",
+                "cursor": ""
+            }
+            encoded_params = "&".join(f"{k}={urllib.parse.quote(str(v))}" for k, v in params.items())
+            api_url = f"{base_url}?{encoded_params}"
+            
+            data = await fetch_api_data(page, api_url)
+            if not data or 'SearchResults' not in data or not data['SearchResults']:
+                print(f"Страница {page_num} не содержит машин, завершаем парсинг {car_type}.")
+                break
+            
+            total_count = data.get('Count', 0)
+            print(f"Страница {page_num}: найдено {len(data['SearchResults'])} машин, всего доступно {total_count}")
+            
+            yield data['SearchResults']
+            
+            offset += page_size
+            page_num += 1
+            await asyncio.sleep(1)
+    finally:
+        await browser.stop()
 
-async def parse_car_details(car_id: str):
-    """Получает подробную информацию о машине из API."""
-    url = f"https://api.encar.com/v1/readside/vehicle/{car_id}"
-    params = {"include": "ADVERTISEMENT,CATEGORY,CONDITION,CONTACT,MANAGE,OPTIONS,PHOTOS,SPEC,PARTNERSHIP,CENTER,VIEW"}
-    return await fetch_api_data(url, params)
+async def parse_car_details(page: zd.Tab, car_id: str):
+    """Получает подробную информацию о машине из API через браузер."""
+    url = f"https://api.encar.com/v1/readside/vehicle/{car_id}?include=ADVERTISEMENT,CATEGORY,CONDITION,CONTACT,MANAGE,OPTIONS,PHOTOS,SPEC,PARTNERSHIP,CENTER,VIEW"
+    return await fetch_api_data(page, url)
 
-async def parse_accident_summary(car_id: str, vehicle_no: str):
-    """Получает историю страхования машины из API."""
-    url = f"https://api.encar.com/v1/readside/record/vehicle/{car_id}/open"
-    params = {"vehicleNo": vehicle_no}
-    return await fetch_api_data(url, params)
+async def parse_accident_summary(page: zd.Tab, car_id: str, vehicle_no: str):
+    """Получает историю страхования машины из API через браузер."""
+    url = f"https://api.encar.com/v1/readside/record/vehicle/{car_id}/open?vehicleNo={urllib.parse.quote(vehicle_no)}"
+    return await fetch_api_data(page, url)
 
-async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore):
+async def fetch_car_full_info(car, exchange_rate, sem: asyncio.Semaphore, page: zd.Tab):
     """Обрабатывает полную информацию о машине и сохраняет в базу данных."""
     async with sem:
         try:
             print(f"Обработка машины {car['Id']}")
-            details = await parse_car_details(car['Id'])
+            details = await parse_car_details(page, car['Id'])
             if not details or 'vehicleNo' not in details:
                 print(f"Не удалось получить детали для машины {car['Id']}")
                 return
             
-            accident_data = await parse_accident_summary(car['Id'], details['vehicleNo'])
+            accident_data = await parse_accident_summary(page, car['Id'], details['vehicleNo'])
             if not accident_data:
                 print(f"Не удалось получить историю аварий для машины {car['Id']}")
                 return
@@ -309,21 +298,28 @@ async def parse_full_car_info(max_pages: int = None):
         print("Не удалось получить курс обмена, завершение.")
         return
     
-    for car_type in ['kor', 'ev']:
-        print(f"Парсинг машин типа '{car_type}'...")
-        async for page_cars in parse_cars(car_type, max_pages):
-            async with DBApi() as db_temp:
-                existing_ids = set(await db_temp.get_all_car_ids())
-            new_cars = [car for car in page_cars if car['Id'] not in existing_ids]
-            print(f"Найдено {len(new_cars)} новых машин из {len(page_cars)} на странице")
-            
-            sem = asyncio.Semaphore(20)
-            tasks = [fetch_car_full_info(car, exchange_rate, sem) for car in new_cars]
-            await asyncio.gather(*tasks, return_exceptions=True)
-            
-            del page_cars
-            del new_cars
-            await asyncio.sleep(1)
+    browser = await zd.start(headless=True, user_agent=USER_AGENT)
+    page = await browser.get('https://car.encar.com/list/car?page=1&search=%7B%22type%22%3A%22ev%22%2C%22action%22%3A%22(And.Hidden.N._.CarType.A._.GreenType.Y.)%22%2C%22title%22%3A%22%EC%A0%84%EA%B8%B0%C2%B7%EC%B9%9C%ED%99%98%EA%B2%BD%22%2C%22toggle%22%3A%7B%7D%2C%22layer%22%3A%22%22%2C%22sort%22%3A%22MobileModifiedDate%22%7D')
+    await page.wait(20)  # Ждём полной загрузки страницы и API-запросов
+    
+    try:
+        for car_type in ['kor', 'ev']:
+            print(f"Парсинг машин типа '{car_type}'...")
+            async for page_cars in parse_cars(car_type, max_pages):
+                async with DBApi() as db_temp:
+                    existing_ids = set(await db_temp.get_all_car_ids())
+                new_cars = [car for car in page_cars if car['Id'] not in existing_ids]
+                print(f"Найдено {len(new_cars)} новых машин из {len(page_cars)} на странице")
+                
+                sem = asyncio.Semaphore(1)
+                tasks = [fetch_car_full_info(car, exchange_rate, sem, page) for car in new_cars]
+                await asyncio.gather(*tasks, return_exceptions=True)
+                
+                del page_cars
+                del new_cars
+                await asyncio.sleep(1)
+    finally:
+        await browser.stop()
     
     print("Парсинг завершён.")
 

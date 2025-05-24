@@ -151,7 +151,8 @@ async def main():
 
 async def test():
     """Тестирует сохранение и загрузку cookies, а также запрос через requests."""
-    # await get_browser()
+    await get_browser()
+    return
     print("Cookies успешно сохранены.")
 
     cookies = await load_cookies()
